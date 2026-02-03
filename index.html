@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>대산항 Seetec 포트 클로징 현황</title>
+    <style>
+        /* 모바일에 최적화된 스타일 */
+        :root {
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --text-primary: #1c1e21;
+            --text-secondary: #606770;
+            --open-color: #00c851;
+            --closed-bg: #ffebec;
+            --closed-color: #e53935;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", sans-serif; background-color: var(--bg-color); color: var(--text-primary); margin: 0; padding: 20px; -webkit-font-smoothing: antialiased; }
+        .header { text-align: center; margin-bottom: 25px; }
+        h1 { font-size: 1.5rem; color: #34495e; margin: 0; font-weight: 700; }
+        .info { font-size: 0.9rem; color: var(--text-secondary); margin-top: 8px; }
+        .card-list { list-style: none; padding: 0; margin: 0; max-width: 600px; margin: 0 auto; }
+        .card { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; transition: transform 0.2s; }
+        .card:active { transform: scale(0.98); }
+        .card.closed { background-color: var(--closed-bg); border: 2px solid var(--closed-color); }
+        .card-left { display: flex; flex-direction: column; }
+        .date { font-size: 1.1rem; font-weight: 600; color: #34495e; }
+        .status { display: flex; align-items: center; font-size: 1.4rem; font-weight: 800; margin-top: 8px; }
+        .status-icon { margin-right: 8px; font-size: 1.6rem; }
+        .open .status { color: var(--open-color); }
+        .closed .status { color: var(--closed-color); }
+        .card-right { text-align: right; font-size: 0.95rem; color: var(--text-secondary); }
+        .detail-row { margin-bottom: 4px; }
+        .mid-val { font-weight: 600; color: #34495e; }
+        .wait { color: #aaa; font-style: italic; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>🚢 대산항 Seetec 포트 클로징</h1>
+    <p class="info">기준: 서해중부 먼바다 파고 중간값 2.5m 이상</p>
+</div>
+
+<ul class="card-list" id="cardList">
+    </ul>
+
+<script>
+    // 1. 데이터 입력 (이 부분을 Python이 자동으로 수정하게 됩니다)
+    const forecastData = {
+        "2026-02-01": [{ t: "종일", r: "1.0~2.0" }],
+        "2026-02-02": [{ t: "종일", r: "0.5~1.5" }],
+        "2026-02-03": [{ t: "종일", r: "0.5~1.0" }],
+        "2026-02-04": [{ t: "오전", r: "0.5~1.0" }, { t: "오후", r: "0.5~1.0" }],
+        "2026-02-05": [{ t: "오전", r: "1.0~2.0" }, { t: "오후", r: "1.5~2.5" }],
+        "2026-02-06": [{ t: "오전", r: "1.5~2.5" }, { t: "오후", r: "2.0~3.0" }],
+        "2026-02-07": [{ t: "오전", r: "3.0~4.0" }, { t: "오후", r: "2.5~3.5" }],
+        "2026-02-08": [{ t: "종일", r: "1.5~2.5" }],
+        "2026-02-09": [{ t: "종일", r: "1.0~2.0" }],
+        "2026-02-10": [{ t: "종일", r: "0.5~1.5" }],
+        "2026-02-11": [{ t: "종일", r: "1.0~2.0" }],
+        "2026-02-12": [{ t: "종일", r: "1.5~2.5" }]
+        // 13일부터는 데이터 없음
+    };
+
+    const cardList = document.getElementById('cardList');
+    const days = ['일', '월', '화', '수', '목', '금', '토'];
+
+    // 2. 2월 1일부터 28일까지 카드 생성 및 스타일 적용
+    for (let day = 1; day <= 28; day++) {
+        const dateStr = `2026-02-${day.toString().padStart(2, '0')}`;
+        const dateObj = new Date(dateStr);
+        const dayOfWeek = days[dateObj.getDay()];
+        const data = forecastData[dateStr] || [{ t: "정보 없음", r: null }];
+
+        data.forEach(item => {
+            const li = document.createElement('li');
+            let cardClass = 'card';
+            let statusIcon = '🟢';
+            let statusText = '오픈';
+            let rangeText = '-';
+            let midValText = '-';
+
+            if (item.r) {
+                const parts = item.r.split('~').map(Number);
+                const mid = (parts[0] + parts[1]) / 2;
+                rangeText = `${item.r}m`;
+                midValText = `${mid.toFixed(1)}m`;
+
+                if (mid >= 2.5) {
+                    cardClass += ' closed';
+                    statusIcon = '🔴';
+                    statusText = '클로징';
+                } else {
+                    cardClass += ' open';
+                }
+            } else {
+                cardClass += ' wait';
+                statusIcon = '⚪';
+                statusText = '대기 중';
+            }
+
+            li.className = cardClass;
+            li.innerHTML = `
+                <div class="card-left">
+                    <span class="date">${2}/${day} (${dayOfWeek})</span>
+                    <div class="status">
+                        <span class="status-icon">${statusIcon}</span>
+                        <span>${statusText}</span>
+                    </div>
+                </div>
+                <div class="card-right">
+                    <div class="detail-row">시간: ${item.t}</div>
+                    <div class="detail-row">파고: ${rangeText}</div>
+                    <div class="detail-row">중간값: <span class="mid-val">${midValText}</span></div>
+                </div>
+            `;
+            cardList.appendChild(li);
+        });
+    }
+</script>
+
+</body>
+</html>
