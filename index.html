@@ -2,123 +2,283 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>대산항 Seetec 포트 클로징 현황</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚢 대산항 Seetec 포트 현황판</title>
     <style>
-        /* 모바일에 최적화된 스타일 */
-        :root {
-            --bg-color: #f0f2f5;
-            --card-bg: #ffffff;
-            --text-primary: #1c1e21;
-            --text-secondary: #606770;
-            --open-color: #00c851;
-            --closed-bg: #ffebec;
-            --closed-color: #e53935;
+        :root { 
+            --bg: #f4f7f6; 
+            --open: #2ecc71; 
+            --closed: #e74c3c; 
+            --heavy-closed: #941a1a; /* 4m 이상: 진한 빨강 */
+            --none: #dfe6e9; 
+            --text: #2d3436; 
+            --fix: #f39c12; 
         }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", sans-serif; background-color: var(--bg-color); color: var(--text-primary); margin: 0; padding: 20px; -webkit-font-smoothing: antialiased; }
-        .header { text-align: center; margin-bottom: 25px; }
-        h1 { font-size: 1.5rem; color: #34495e; margin: 0; font-weight: 700; }
-        .info { font-size: 0.9rem; color: var(--text-secondary); margin-top: 8px; }
-        .card-list { list-style: none; padding: 0; margin: 0; max-width: 600px; margin: 0 auto; }
-        .card { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; transition: transform 0.2s; }
-        .card:active { transform: scale(0.98); }
-        .card.closed { background-color: var(--closed-bg); border: 2px solid var(--closed-color); }
-        .card-left { display: flex; flex-direction: column; }
-        .date { font-size: 1.1rem; font-weight: 600; color: #34495e; }
-        .status { display: flex; align-items: center; font-size: 1.4rem; font-weight: 800; margin-top: 8px; }
-        .status-icon { margin-right: 8px; font-size: 1.6rem; }
-        .open .status { color: var(--open-color); }
-        .closed .status { color: var(--closed-color); }
-        .card-right { text-align: right; font-size: 0.95rem; color: var(--text-secondary); }
-        .detail-row { margin-bottom: 4px; }
-        .mid-val { font-weight: 600; color: #34495e; }
-        .wait { color: #aaa; font-style: italic; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 10px; color: var(--text); }
+        .container { max-width: 800px; margin: 0 auto; background: #fff; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); overflow: hidden; }
+        
+        .header { background: #34495e; color: #fff; padding: 25px 20px; text-align: center; position: relative; }
+        .header h2 { margin: 0; font-size: 1.5rem; }
+        .created-by { font-size: 0.85rem; color: #bdc3c7; margin-top: 8px; font-weight: 500; letter-spacing: 0.5px; }
+        
+        .conn-status { position: absolute; top: 10px; right: 15px; font-size: 0.7rem; padding: 4px 8px; border-radius: 20px; background: rgba(0,0,0,0.3); }
+        .conn-status.online { border: 1px solid var(--open); color: var(--open); }
+        .conn-status.fix { border: 1px solid var(--fix); color: var(--fix); }
+
+        .fix-panel { background: #fff9e6; padding: 15px; border-bottom: 2px solid #ffeaa7; display: none; text-align: center; }
+        .fix-panel.active { display: block !important; }
+        
+        #authArea { display: none; margin-top: 10px; }
+        #dataInputArea { display: none; margin-top: 15px; border-top: 1px dashed #f39c12; padding-top: 15px; }
+        textarea { width: 90%; height: 120px; font-size: 0.7rem; border-radius: 5px; border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; }
+        input[type="password"] { padding: 10px; border-radius: 5px; border: 1px solid #ddd; width: 180px; margin-bottom: 5px; }
+        .btn-main { padding: 10px 20px; background:#34495e; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold; }
+        .btn-apply { padding: 10px 25px; background:var(--open); color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold; }
+
+        .month-nav { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; padding: 15px; background: #f8f9fa; }
+        .m-btn { border: 1px solid #ddd; background: #fff; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.8rem; font-weight: bold; }
+        .m-btn.active { background: #3498db; color: #fff; border-color: #3498db; }
+
+        .stats-bar { display: grid; grid-template-columns: repeat(3, 1fr); background: #fff; padding: 15px 5px; border-bottom: 2px solid #f1f2f6; }
+        .stat-item { text-align: center; border-right: 1px solid #eee; }
+        .stat-item:last-child { border-right: none; }
+        .stat-label { font-size: 0.75rem; color: #636e72; font-weight: bold; display: block; margin-bottom: 5px; }
+        .stat-val { font-size: 1.1rem; font-weight: 800; }
+
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+        .weekday { background: #f1f2f6; text-align: center; padding: 10px 0; font-size: 0.8rem; font-weight: bold; border-bottom: 1px solid #eee; }
+        .day-cell { border-right: 1px solid #eee; border-bottom: 1px solid #eee; min-height: 95px; position: relative; background: #fff; }
+        .day-num { font-size: 0.75rem; font-weight: bold; padding: 5px; color: #636e72; }
+        
+        .slot-container { display: flex; flex-direction: column; height: 70px; gap: 2px; padding: 2px; }
+        .slot { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; border-radius: 3px; font-weight: bold; cursor: pointer; }
+        .slot.none { background: var(--none); color: #999; }
+        .slot.open { background: var(--open); color: #fff; }
+        .slot.closed { background: var(--closed); color: #fff; }
+        .slot.heavy-closed { background: var(--heavy-closed); color: #fff; text-shadow: 0 0 3px rgba(0,0,0,0.5); }
+
+        .footer { padding: 15px; text-align: center; font-size: 0.75rem; color: #bdc3c7; border-top: 1px solid #eee; }
+        
+        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: #fff; padding: 25px; border-radius: 15px; text-align: center; width: 85%; max-width: 300px; }
+        .wave-detail-box { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 10px; border: 1px solid #eee; }
+        .wave-label { font-size: 0.75rem; color: #7f8c8d; margin-bottom: 5px; }
+        .wave-value { font-size: 1.1rem; font-weight: 800; color: #2d3436; }
     </style>
 </head>
 <body>
 
-<div class="header">
-    <h1>🚢 대산항 Seetec 포트 클로징</h1>
-    <p class="info">기준: 서해중부 먼바다 파고 중간값 2.5m 이상</p>
+<div class="container">
+    <div class="header">
+        <div id="connBadge" class="conn-status">연결 확인 중...</div>
+        <h2>🚢 대산항 Seetec 현황판</h2>
+        <div class="created-by">Created by JS KIM (LAM)</div>
+        <button onclick="manualToggleFix()" style="background:var(--fix); color:#fff; border:none; padding:6px 12px; border-radius:5px; font-size:0.7rem; cursor:pointer; font-weight:bold; margin-top:15px;">픽스모드 메뉴 설정</button>
+    </div>
+
+    <div id="fixPanel" class="fix-panel">
+        <div id="msgArea">
+            <strong style="color:var(--fix)">⚠️ 보안 블록됨 (로컬 데이터 사용 중)</strong><br>
+            <p style="font-size:0.8rem; margin:10px 0;">브라우저 저장 데이터를 사용합니다. 수정 시 비밀번호가 필요합니다.</p>
+            <button id="btnUnlock" onclick="showAuth()" class="btn-main">🔐 데이터 수정/재업로드</button>
+        </div>
+        <div id="authArea">
+            <input type="password" id="adminPw" placeholder="관리자 비밀번호">
+            <button onclick="checkAuth()" class="btn-main">인증</button>
+        </div>
+        <div id="dataInputArea">
+            <strong>✅ 인증 완료: 스프레드시트 데이터 붙여넣기</strong><br>
+            <textarea id="manualData" placeholder="날짜	시간	Low	High	Status 형식 붙여넣기..."></textarea>
+            <button onclick="applyManualData()" class="btn-apply">저장 및 달력 반영</button>
+        </div>
+    </div>
+
+    <div class="month-nav" id="monthNav"></div>
+    
+    <div class="stats-bar">
+        <div class="stat-item"><span class="stat-label">🟢 오픈율</span><span id="openRatio" class="stat-val" style="color:var(--open)">0%</span></div>
+        <div class="stat-item"><span class="stat-label">🔴 클로징 횟수</span><span id="closedCount" class="stat-val" style="color:var(--closed)">0회</span></div>
+        <div class="stat-item"><span class="stat-label">🚫 클로징 비율</span><span id="closedRatio" class="stat-val" style="color:var(--closed)">0%</span></div>
+    </div>
+
+    <div class="calendar-grid" id="calendar">
+        <div class="weekday">일</div><div class="weekday">월</div><div class="weekday">화</div>
+        <div class="weekday">수</div><div class="weekday">목</div><div class="weekday">금</div><div class="weekday">토</div>
+    </div>
+
+    <div class="footer">© 2026 LAM. All port data verified for Daesan Seetec.</div>
 </div>
 
-<ul class="card-list" id="cardList">
-    </ul>
+<div id="modal" onclick="closeModal()"><div class="modal-content" onclick="event.stopPropagation()">
+    <div id="mDate" style="font-weight:bold; margin-bottom:10px; color:#7f8c8d;"></div>
+    <div id="mStatus" style="font-weight:bold; font-size:1.3rem;"></div>
+    <div class="wave-detail-box" id="waveBox">
+        <div><div class="wave-label">최저 파고(Min)</div><div id="mLow" class="wave-value">-</div></div>
+        <div><div class="wave-label">최고 파고(Max)</div><div id="mHigh" class="wave-value">-</div></div>
+    </div>
+    <button onclick="closeModal()" style="padding:10px 25px; border-radius:5px; border:1px solid #ddd; cursor:pointer;">창 닫기</button>
+</div></div>
 
 <script>
-    // 1. 데이터 입력 (이 부분을 Python이 자동으로 수정하게 됩니다)
-    const forecastData = {
-        "2026-02-01": [{ t: "종일", r: "1.0~2.0" }],
-        "2026-02-02": [{ t: "종일", r: "0.5~1.5" }],
-        "2026-02-03": [{ t: "종일", r: "0.5~1.0" }],
-        "2026-02-04": [{ t: "오전", r: "0.5~1.0" }, { t: "오후", r: "0.5~1.0" }],
-        "2026-02-05": [{ t: "오전", r: "1.0~2.0" }, { t: "오후", r: "1.5~2.5" }],
-        "2026-02-06": [{ t: "오전", r: "1.5~2.5" }, { t: "오후", r: "2.0~3.0" }],
-        "2026-02-07": [{ t: "오전", r: "3.0~4.0" }, { t: "오후", r: "2.5~3.5" }],
-        "2026-02-08": [{ t: "종일", r: "1.5~2.5" }],
-        "2026-02-09": [{ t: "종일", r: "1.0~2.0" }],
-        "2026-02-10": [{ t: "종일", r: "0.5~1.5" }],
-        "2026-02-11": [{ t: "종일", r: "1.0~2.0" }],
-        "2026-02-12": [{ t: "종일", r: "1.5~2.5" }]
-        // 13일부터는 데이터 없음
-    };
+    const year = 2026;
+    let currentMonth = new Date().getMonth() + 1;
+    let globalData = {};
+    const MASTER_PW = "jskim0111";
+    const sheetCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSGrqzEdgECvgskv4CW-1-FdlAXq1ZIYomFapbQidCM8i2avijanfPHgOKk8Ajtyrt8a6VqbSvpT6uN/pub?output=csv";
 
-    const cardList = document.getElementById('cardList');
-    const days = ['일', '월', '화', '수', '목', '금', '토'];
+    function init() {
+        const nav = document.getElementById('monthNav');
+        for(let m=1; m<=12; m++) {
+            const btn = document.createElement('button');
+            btn.className = `m-btn ${m === currentMonth ? 'active' : ''}`;
+            btn.innerText = `${m}월`;
+            btn.onclick = () => {
+                document.querySelectorAll('.m-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentMonth = m;
+                renderCalendar(m);
+            };
+            nav.appendChild(btn);
+        }
+        const savedData = localStorage.getItem('daesan_fix_data');
+        if (savedData) processDataText(savedData);
+        syncWithGoogleSheets();
+    }
 
-    // 2. 2월 1일부터 28일까지 카드 생성 및 스타일 적용
-    for (let day = 1; day <= 28; day++) {
-        const dateStr = `2026-02-${day.toString().padStart(2, '0')}`;
-        const dateObj = new Date(dateStr);
-        const dayOfWeek = days[dateObj.getDay()];
-        const data = forecastData[dateStr] || [{ t: "정보 없음", r: null }];
+    async function syncWithGoogleSheets() {
+        const badge = document.getElementById('connBadge');
+        const panel = document.getElementById('fixPanel');
+        try {
+            const response = await fetch(sheetCsvUrl);
+            const csvText = await response.text();
+            parseCsvData(csvText);
+            badge.innerText = "● 온라인 연결 성공";
+            badge.className = "conn-status online";
+            panel.classList.remove('active');
+            renderCalendar(currentMonth);
+        } catch (error) {
+            badge.innerText = "● 보안 블록됨";
+            badge.className = "conn-status fix";
+            panel.classList.add('active');
+            renderCalendar(currentMonth);
+        }
+    }
 
-        data.forEach(item => {
-            const li = document.createElement('li');
-            let cardClass = 'card';
-            let statusIcon = '🟢';
-            let statusText = '오픈';
-            let rangeText = '-';
-            let midValText = '-';
-
-            if (item.r) {
-                const parts = item.r.split('~').map(Number);
-                const mid = (parts[0] + parts[1]) / 2;
-                rangeText = `${item.r}m`;
-                midValText = `${mid.toFixed(1)}m`;
-
-                if (mid >= 2.5) {
-                    cardClass += ' closed';
-                    statusIcon = '🔴';
-                    statusText = '클로징';
-                } else {
-                    cardClass += ' open';
-                }
-            } else {
-                cardClass += ' wait';
-                statusIcon = '⚪';
-                statusText = '대기 중';
+    function parseCsvData(csv) {
+        const lines = csv.split('\n');
+        globalData = {};
+        for(let i=1; i<lines.length; i++) {
+            const cols = lines[i].split(',');
+            if(cols.length >= 5) {
+                const date = cols[0].trim();
+                if(!globalData[date]) globalData[date] = [];
+                globalData[date].push({ t: cols[1], low: cols[2], high: cols[3], s: cols[4].trim() });
             }
+        }
+    }
 
-            li.className = cardClass;
-            li.innerHTML = `
-                <div class="card-left">
-                    <span class="date">${2}/${day} (${dayOfWeek})</span>
-                    <div class="status">
-                        <span class="status-icon">${statusIcon}</span>
-                        <span>${statusText}</span>
-                    </div>
-                </div>
-                <div class="card-right">
-                    <div class="detail-row">시간: ${item.t}</div>
-                    <div class="detail-row">파고: ${rangeText}</div>
-                    <div class="detail-row">중간값: <span class="mid-val">${midValText}</span></div>
-                </div>
-            `;
-            cardList.appendChild(li);
+    function processDataText(text) {
+        const rows = text.trim().split('\n');
+        rows.forEach(row => {
+            const cols = row.split('\t');
+            if (cols.length >= 4) {
+                const date = cols[0].trim();
+                if (!globalData[date]) globalData[date] = [];
+                globalData[date] = globalData[date].filter(item => item.t !== cols[1]);
+                globalData[date].push({ t: cols[1], low: cols[2] || cols[3], high: cols[3], s: cols[4] ? cols[4].trim() : "" });
+            }
         });
     }
-</script>
 
+    function renderCalendar(month) {
+        const grid = document.getElementById('calendar');
+        grid.querySelectorAll('.day-cell').forEach(c => c.remove());
+        const firstDay = new Date(year, month - 1, 1).getDay();
+        const daysInMonth = new Date(year, month, 0).getDate();
+        let total = 0, open = 0, closed = 0;
+
+        for(let i=0; i<firstDay; i++) grid.innerHTML += `<div class="day-cell" style="background:#f9f9f9"></div>`;
+
+        for(let d=1; d<=daysInMonth; d++) {
+            const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const records = globalData[dateStr] || [];
+            let slotsHtml = `<div class="slot-container">`;
+            [{k:"오전", l:"AM"}, {k:"오후", l:"PM"}].forEach(p => {
+                const record = records.find(r => r.t.includes(p.k));
+                if(record) {
+                    const status = record.s.trim();
+                    const highVal = parseFloat(record.high.replace(/m/g, ''));
+                    const isWaiting = !status || status === "발표대기중" || isNaN(highVal);
+                    
+                    if (!isWaiting) {
+                        total++;
+                        if(status.toLowerCase() === "closed") closed++; else open++;
+                    }
+
+                    // 색상 결정 로직 (4m 이상은 heavy-closed)
+                    let sClass = 'none';
+                    if(!isWaiting) {
+                        if(status.toLowerCase() === 'closed') {
+                            sClass = (highVal >= 4.0) ? 'heavy-closed' : 'closed';
+                        } else {
+                            sClass = 'open';
+                        }
+                    }
+
+                    const icon = isWaiting ? '⏳' : (status.toLowerCase() === 'closed' ? '🔴' : '🟢');
+                    slotsHtml += `<div class="slot ${sClass}" onclick="showDetail('${dateStr}', '${record.t}', '${record.low}', '${record.high}', '${status}')">${icon} ${p.l}</div>`;
+                } else { slotsHtml += `<div class="slot none">---</div>`; }
+            });
+            grid.innerHTML += `<div class="day-cell"><div class="day-num">${d}</div>${slotsHtml}</div>`;
+        }
+        updateStats(total, open, closed);
+    }
+
+    function updateStats(t, o, c) {
+        const ratio = t > 0 ? Math.round((o / t) * 100) : 0;
+        document.getElementById('openRatio').innerText = ratio + "%";
+        document.getElementById('closedCount').innerText = c + "회";
+        document.getElementById('closedRatio').innerText = (t > 0 ? (100 - ratio) : 0) + "%";
+    }
+
+    function showDetail(d, t, low, high, s) {
+        document.getElementById('mDate').innerText = d + " (" + t + ")";
+        const status = s.trim();
+        const highVal = parseFloat(high.replace(/m/g, ''));
+        const isWaiting = !status || status === "발표대기중" || isNaN(highVal);
+        
+        if (isWaiting) {
+            document.getElementById('mStatus').innerText = '⏳ 기상 발표 대기 중';
+            document.getElementById('mStatus').style.color = '#7f8c8d';
+            document.getElementById('mLow').innerText = "-";
+            document.getElementById('mHigh').innerText = "-";
+        } else {
+            const isClosed = status.toLowerCase() === 'closed';
+            const isHeavy = highVal >= 4.0;
+            document.getElementById('mStatus').innerText = isClosed ? (isHeavy ? '🚨 HEAVY CLOSED' : '🔴 PORT CLOSED') : '🟢 PORT OPEN';
+            document.getElementById('mStatus').style.color = isClosed ? (isHeavy ? '#941a1a' : '#e74c3c') : '#2ecc71';
+            document.getElementById('mLow').innerText = low + (low.includes('m') ? '' : 'm');
+            document.getElementById('mHigh').innerText = high + (high.includes('m') ? '' : 'm');
+        }
+        document.getElementById('modal').style.display = 'flex';
+    }
+
+    function applyManualData() {
+        const input = document.getElementById('manualData').value;
+        if(!input) return;
+        localStorage.setItem('daesan_fix_data', input);
+        processDataText(input);
+        renderCalendar(currentMonth);
+        alert("데이터 저장 완료");
+        document.getElementById('dataInputArea').style.display = 'none';
+        document.getElementById('msgArea').style.display = 'block';
+    }
+
+    function showAuth() { document.getElementById('msgArea').style.display = 'none'; document.getElementById('authArea').style.display = 'block'; }
+    function checkAuth() { if (document.getElementById('adminPw').value === MASTER_PW) { document.getElementById('authArea').style.display = 'none'; document.getElementById('dataInputArea').style.display = 'block'; } else { alert("비밀번호 오류"); } }
+    function manualToggleFix() { document.getElementById('fixPanel').classList.toggle('active'); }
+    function closeModal() { document.getElementById('modal').style.display = 'none'; }
+    window.onload = init;
+</script>
 </body>
 </html>
