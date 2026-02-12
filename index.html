@@ -3,70 +3,155 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🚢 대산항 Seetec 현황판 (Peak Hold Mode)</title>
+    <title>🚢 대산항 Seetec 포트 현황판 (M.D.C.)</title>
     <style>
         :root { 
             --bg: #f4f7f6; --open: #2ecc71; --closed: #e74c3c; --heavy-closed: #941a1a; 
             --none: #dfe6e9; --text: #2d3436; --fix: #f39c12; --mateo: #3498db;
         }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 10px; color: var(--text); }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); margin: 0; padding: 10px; color: var(--text); }
         .container { max-width: 800px; margin: 0 auto; background: #fff; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); overflow: hidden; }
+        
+        /* 헤더 디자인 복구 */
         .header { background: #34495e; color: #fff; padding: 25px 20px; text-align: center; position: relative; }
-        .header h2 { margin: 0; font-size: 1.5rem; }
-        .created-by { font-size: 0.85rem; color: #bdc3c7; margin-top: 8px; }
+        .header h2 { margin: 0; font-size: 1.5rem; letter-spacing: -0.5px; }
+        .created-by { font-size: 0.85rem; color: #bdc3c7; margin-top: 8px; font-weight: 500; }
+        
+        /* 상태 배지 */
         .conn-status { position: absolute; top: 10px; right: 15px; font-size: 0.7rem; padding: 4px 8px; border-radius: 20px; background: rgba(0,0,0,0.3); }
+        .conn-status.online { border: 1px solid var(--open); color: var(--open); }
+        .conn-status.fix { border: 1px solid var(--fix); color: var(--fix); }
         .conn-status.realtime { border: 1px solid var(--mateo); color: var(--mateo); right: auto; left: 15px; }
+
+        /* 픽스 패널 */
+        .fix-panel { background: #fff9e6; padding: 15px; border-bottom: 2px solid #ffeaa7; display: none; text-align: center; }
+        .fix-panel.active { display: block !important; }
+        #authArea, #dataInputArea { display: none; margin-top: 10px; }
+        textarea { width: 95%; height: 100px; font-size: 0.7rem; border-radius: 5px; border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; }
+        input[type="password"] { padding: 10px; border-radius: 5px; border: 1px solid #ddd; width: 150px; }
+        .btn-main { padding: 10px 15px; background:#34495e; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold; }
+        .btn-apply { padding: 10px 20px; background:var(--open); color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold; }
+
+        /* 네비게이션 및 통계 바 */
+        .month-nav { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; padding: 15px; background: #f8f9fa; }
+        .m-btn { border: 1px solid #ddd; background: #fff; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.8rem; font-weight: bold; }
+        .m-btn.active { background: #3498db; color: #fff; border-color: #3498db; }
+        
+        .stats-bar { display: grid; grid-template-columns: repeat(3, 1fr); background: #fff; padding: 15px 5px; border-bottom: 2px solid #f1f2f6; }
+        .stat-item { text-align: center; border-right: 1px solid #eee; }
+        .stat-item:last-child { border-right: none; }
+        .stat-label { font-size: 0.75rem; color: #636e72; font-weight: bold; display: block; margin-bottom: 5px; }
+        .stat-val { font-size: 1.1rem; font-weight: 800; }
+
+        /* 달력 그리드 */
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
         .weekday { background: #f1f2f6; text-align: center; padding: 10px 0; font-size: 0.8rem; font-weight: bold; border-bottom: 1px solid #eee; }
         .day-cell { border-right: 1px solid #eee; border-bottom: 1px solid #eee; min-height: 100px; position: relative; background: #fff; }
         .day-num { font-size: 0.75rem; font-weight: bold; padding: 5px; color: #636e72; }
+        
         .slot-container { display: flex; flex-direction: column; height: 75px; gap: 2px; padding: 2px; }
-        .slot { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .slot { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; border-radius: 4px; font-weight: bold; cursor: pointer; border: 1px solid transparent; }
+        .slot.none { background: var(--none); color: #999; }
         .slot.open { background: var(--open); color: #fff; }
         .slot.closed { background: var(--closed); color: #fff; }
+        .slot.heavy-closed { background: var(--heavy-closed); color: #fff; }
         .slot.mateo-badge { border: 1.5px solid #fff; box-shadow: inset 0 0 5px rgba(0,0,0,0.1); }
+
+        .footer { padding: 20px; text-align: center; font-size: 0.75rem; color: #bdc3c7; border-top: 1px solid #eee; }
+        
+        /* 모달 스타일 복구 */
         #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-content { background: #fff; padding: 25px; border-radius: 15px; text-align: center; width: 85%; max-width: 320px; }
+        .modal-content { background: #fff; padding: 25px; border-radius: 15px; text-align: center; width: 85%; max-width: 320px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); }
+        .wave-detail-box { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 10px; border: 1px solid #eee; }
+        .wave-label { font-size: 0.75rem; color: #7f8c8d; margin-bottom: 5px; }
+        .wave-value { font-size: 1.1rem; font-weight: 800; color: #2d3436; }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="header">
-        <div id="mateoBadge" class="conn-status realtime">Mateo Peak 감시 중</div>
+        <div id="mateoBadge" class="conn-status realtime">Mateo Peak 감시</div>
+        <div id="connBadge" class="conn-status">시트 연결 확인 중...</div>
         <h2>🚢 대산항 Seetec 현황판</h2>
-        <div class="created-by">Created by JS KIM (LAM) | Peak Hold Mode</div>
+        <div class="created-by">Created by JS KIM (LAM)</div>
+        <button onclick="manualToggleFix()" style="background:var(--fix); color:#fff; border:none; padding:6px 12px; border-radius:5px; font-size:0.7rem; cursor:pointer; font-weight:bold; margin-top:15px;">픽스모드 메뉴</button>
     </div>
+
+    <div id="fixPanel" class="fix-panel">
+        <div id="msgArea"><button onclick="showAuth()" class="btn-main">🔐 관리자 인증</button></div>
+        <div id="authArea"><input type="password" id="adminPw" placeholder="비밀번호"><button onclick="checkAuth()" class="btn-main">인증</button></div>
+        <div id="dataInputArea"><textarea id="manualData" placeholder="데이터 입력..."></textarea><button onclick="applyManualData()" class="btn-apply">적용</button></div>
+    </div>
+
+    <div class="month-nav" id="monthNav"></div>
+    <div class="stats-bar">
+        <div class="stat-item"><span class="stat-label">🟢 오픈율</span><span id="openRatio" class="stat-val" style="color:var(--open)">0%</span></div>
+        <div class="stat-item"><span class="stat-label">🔴 클로징</span><span id="closedCount" class="stat-val" style="color:var(--closed)">0</span></div>
+        <div class="stat-item"><span class="stat-label">🚫 비율</span><span id="closedRatio" class="stat-val" style="color:var(--closed)">0%</span></div>
+    </div>
+
     <div class="calendar-grid" id="calendar">
         <div class="weekday">일</div><div class="weekday">월</div><div class="weekday">화</div><div class="weekday">수</div><div class="weekday">목</div><div class="weekday">금</div><div class="weekday">토</div>
     </div>
+    <div class="footer">© 2026 LAM. Hybrid Mode (Peak Hold Enabled).</div>
 </div>
 
 <div id="modal" onclick="closeModal()"><div class="modal-content" onclick="event.stopPropagation()">
-    <div id="mDate" style="font-weight:bold; margin-bottom:5px; color:#7f8c8d;"></div>
+    <div id="mDate" style="font-weight:bold; margin-bottom:5px; color:#7f8c8d; font-size:0.9rem;"></div>
     <div id="mStatus" style="font-weight:bold; font-size:1.4rem; margin-bottom:15px;"></div>
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; background:#f8f9fa; padding:15px; border-radius:10px;">
-        <div>최저 파고<br><b id="mLow">-</b></div><div>최고 피크<br><b id="mHigh">-</b></div>
+    <div class="wave-detail-box">
+        <div><div class="wave-label">최저 파고(Min)</div><div id="mLow" class="wave-value">-</div></div>
+        <div><div class="wave-label">최고 피크(Max)</div><div id="mHigh" class="wave-value">-</div></div>
     </div>
-    <button onclick="closeModal()" style="margin-top:15px; padding:10px 20px;">닫기</button>
+    <button onclick="closeModal()" style="padding:10px 25px; border-radius:5px; border:1px solid #ddd; cursor:pointer; font-weight:bold;">닫기</button>
 </div></div>
 
 <script>
     const year = 2026;
     let currentMonth = new Date().getMonth() + 1;
     let globalData = {};
+    const MASTER_PW = "jskim0111";
     const sheetCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSGrqzEdgECvgskv4CW-1-FdlAXq1ZIYomFapbQidCM8i2avijanfPHgOKk8Ajtyrt8a6VqbSvpT6uN/pub?output=csv";
 
     async function init() {
-        // 로컬에 저장된 최고점 데이터 불러오기
-        const peakData = localStorage.getItem('daesan_peak_hold');
-        if (peakData) globalData = JSON.parse(peakData);
+        renderNav();
+        // 로컬 피크 기록 불러오기
+        const savedPeaks = localStorage.getItem('daesan_peak_hold');
+        if (savedPeaks) globalData = JSON.parse(savedPeaks);
 
         await syncWithGoogleSheets();
         await refreshMateoRealtime();
     }
 
+    async function syncWithGoogleSheets() {
+        const badge = document.getElementById('connBadge');
+        try {
+            const response = await fetch(sheetCsvUrl);
+            const csvText = await response.text();
+            const lines = csvText.split('\n');
+            lines.forEach((line, i) => {
+                if(i === 0) return;
+                const cols = line.split(',');
+                if(cols.length >= 5) {
+                    const ds = cols[0].trim();
+                    const mPlus10 = new Date(); mPlus10.setHours(0,0,0,0); mPlus10.setDate(mPlus10.getDate() + 10);
+                    // M+10 이전 날짜만 시트 데이터 수용
+                    if(new Date(ds) < mPlus10) {
+                        if(!globalData[ds]) globalData[ds] = [];
+                        globalData[ds] = globalData[ds].filter(r => !r.t.includes("Mateo"));
+                        globalData[ds].push({ t: cols[1], low: cols[2], high: cols[3], s: cols[4].trim() });
+                    }
+                }
+            });
+            badge.innerText = "● 시트 연동 성공"; badge.className = "conn-status online";
+        } catch (e) { badge.innerText = "● 로컬 모드"; badge.className = "conn-status fix"; }
+        renderCalendar(currentMonth);
+    }
+
     async function refreshMateoRealtime() {
+        const mBadge = document.getElementById('mateoBadge');
         const lat = 37.0, lon = 125.5;
+        // M+17일까지 가져오기 위해 forecast_days=17
         const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}&hourly=wave_height&timezone=Asia/Seoul&forecast_days=17`;
         const mPlus10 = new Date(); mPlus10.setHours(0,0,0,0); mPlus10.setDate(mPlus10.getDate() + 10);
 
@@ -76,6 +161,7 @@
             const waves = json.hourly.wave_height;
             const times = json.hourly.time;
 
+            // d < 18로 설정하여 17일치 모두 루프
             for (let d = 0; d < 18; d++) {
                 const idx = d * 24; if (idx >= waves.length) break;
                 const dateStr = times[idx].split('T')[0];
@@ -87,53 +173,43 @@
                     const newAmMax = Math.max(...am).toFixed(1);
                     const newPmMax = Math.max(...pm).toFixed(1);
 
-                    // [핵심] 피크 홀드 로직: 기존 값보다 클 때만 업데이트
                     if(!globalData[dateStr]) globalData[dateStr] = [{}, {}];
-                    
-                    const oldAmMax = globalData[dateStr][0]?.high || 0;
-                    if(parseFloat(newAmMax) >= parseFloat(oldAmMax)) {
-                        globalData[dateStr][0] = { t: "오전(Mateo실시간)", low: Math.min(...am).toFixed(1), high: newAmMax, s: newAmMax > 2.0 ? "Closed" : "Open" };
-                    }
 
-                    const oldPmMax = globalData[dateStr][1]?.high || 0;
-                    if(parseFloat(newPmMax) >= parseFloat(oldPmMax)) {
-                        globalData[dateStr][1] = { t: "오후(Mateo실시간)", low: Math.min(...pm).toFixed(1), high: newPmMax, s: newPmMax > 2.0 ? "Closed" : "Open" };
+                    // 피크 홀드: 기존 저장된 high보다 높을 때만 갱신
+                    const oldAm = parseFloat(globalData[dateStr][0]?.high || 0);
+                    if(parseFloat(newAmMax) >= oldAm) {
+                        globalData[dateStr][0] = { t: "오전(Mateo실시간)", low: Math.min(...am).toFixed(1), high: newAmMax, s: parseFloat(newAmMax) > 2.0 ? "Closed" : "Open" };
+                    }
+                    const oldPm = parseFloat(globalData[dateStr][1]?.high || 0);
+                    if(parseFloat(newPmMax) >= oldPm) {
+                        globalData[dateStr][1] = { t: "오후(Mateo실시간)", low: Math.min(...pm).toFixed(1), high: newPmMax, s: parseFloat(newPmMax) > 2.0 ? "Closed" : "Open" };
                     }
                 }
             }
             localStorage.setItem('daesan_peak_hold', JSON.stringify(globalData));
+            mBadge.innerText = "● Mateo Peak 갱신(M+17)";
             renderCalendar(currentMonth);
-        } catch (e) { console.error("Mateo Error"); }
+        } catch (e) { mBadge.innerText = "● Mateo 지연"; }
     }
 
-    async function syncWithGoogleSheets() {
-        try {
-            const response = await fetch(sheetCsvUrl);
-            const csvText = await response.text();
-            const lines = csvText.split('\n');
-            lines.forEach((line, i) => {
-                if(i === 0) return;
-                const cols = line.split(',');
-                if(cols.length >= 5) {
-                    const date = cols[0].trim();
-                    if(!globalData[date]) globalData[date] = [];
-                    // M+10 이전 날짜만 시트 데이터로 초기화
-                    const mPlus10 = new Date(); mPlus10.setDate(mPlus10.getDate() + 10);
-                    if(new Date(date) < mPlus10) {
-                        globalData[date] = globalData[date].filter(r => !r.t.includes("Mateo"));
-                        globalData[date].push({ t: cols[1], low: cols[2], high: cols[3], s: cols[4].trim() });
-                    }
-                }
-            });
-            renderCalendar(currentMonth);
-        } catch (e) { console.error("Sheet Error"); }
+    function renderNav() {
+        const nav = document.getElementById('monthNav'); nav.innerHTML = '';
+        for(let m=1; m<=12; m++) {
+            const btn = document.createElement('button');
+            btn.className = `m-btn ${m === currentMonth ? 'active' : ''}`; btn.innerText = `${m}월`;
+            btn.onclick = () => { 
+                document.querySelectorAll('.m-btn').forEach(b => b.classList.remove('active')); 
+                btn.classList.add('active'); currentMonth = m; renderCalendar(m); 
+            };
+            nav.appendChild(btn);
+        }
     }
 
     function renderCalendar(month) {
-        const grid = document.getElementById('calendar');
-        grid.querySelectorAll('.day-cell').forEach(c => c.remove());
+        const grid = document.getElementById('calendar'); grid.querySelectorAll('.day-cell').forEach(c => c.remove());
         const firstDay = new Date(year, month - 1, 1).getDay();
         const daysInMonth = new Date(year, month, 0).getDate();
+        let t = 0, o = 0, c = 0;
 
         for(let i=0; i<firstDay; i++) {
             const e = document.createElement('div'); e.className = 'day-cell'; e.style.background = '#f9f9f9'; grid.appendChild(e);
@@ -151,15 +227,20 @@
                 const slot = document.createElement('div');
                 if(r) {
                     const st = r.s.trim().toLowerCase(); const hv = parseFloat(r.high);
+                    if(st !== "발표대기중" && !isNaN(hv)) { t++; if(st === "closed") c++; else o++; }
                     let sClass = st === 'closed' ? (hv >= 4.0 ? 'heavy-closed' : 'closed') : (st === 'open' ? 'open' : 'none');
                     slot.className = `slot ${sClass} ${r.t.includes("Mateo") ? 'mateo-badge' : ''}`;
-                    slot.innerHTML = `${st === 'closed' ? '🔴' : '🟢'} ${p.l}`;
+                    slot.innerHTML = `${st === 'closed' ? '🔴' : (st === 'open' ? '🟢' : '⏳')} ${p.l}`;
                     slot.onclick = () => showDetail(ds, r.t, r.low, r.high, r.s);
                 } else { slot.className = 'slot none'; slot.innerText = '---'; }
                 container.appendChild(slot);
             });
             cell.appendChild(container); grid.appendChild(cell);
         }
+        const ratio = t > 0 ? Math.round((o / t) * 100) : 0;
+        document.getElementById('openRatio').innerText = ratio + "%";
+        document.getElementById('closedCount').innerText = c;
+        document.getElementById('closedRatio').innerText = (t > 0 ? (100 - ratio) : 0) + "%";
     }
 
     function showDetail(d, t, low, high, s) {
@@ -167,25 +248,34 @@
         const st = s.trim().toLowerCase(); const hv = parseFloat(high);
         const mS = document.getElementById('mStatus');
         const isC = st === 'closed';
-        mS.innerText = isC ? '🔴 PORT CLOSED' : '🟢 PORT OPEN';
-        mS.style.color = isC ? '#e74c3c' : '#2ecc71';
-        document.getElementById('mLow').innerText = low + "m";
-        document.getElementById('mHigh').innerText = high + "m";
+        mS.innerText = isC ? (hv >= 4.0 ? '🚨 HEAVY CLOSED' : '🔴 PORT CLOSED') : '🟢 PORT OPEN';
+        mS.style.color = isC ? (hv >= 4.0 ? '#941a1a' : '#e74c3c') : '#2ecc71';
+        document.getElementById('mLow').innerText = low.toString().replace('m', '') + "m";
+        document.getElementById('mHigh').innerText = high.toString().replace('m', '') + "m";
         document.getElementById('modal').style.display = 'flex';
     }
 
-    function renderNav() {
-        const nav = document.createElement('div'); nav.className = 'month-nav';
-        for(let m=1; m<=12; m++) {
-            const btn = document.createElement('button'); btn.className = 'm-btn'; btn.innerText = m + '월';
-            btn.onclick = () => { currentMonth = m; renderCalendar(m); };
-            nav.appendChild(btn);
-        }
-        document.querySelector('.container').insertBefore(nav, document.getElementById('calendar'));
+    function applyManualData() {
+        const input = document.getElementById('manualData').value;
+        if(!input) return; localStorage.setItem('daesan_fix_data', input);
+        processDataText(input); renderCalendar(currentMonth); alert("로컬 저장 완료");
     }
-
+    function processDataText(text) {
+        text.trim().split('\n').forEach(row => {
+            const cols = row.split(/\t|,/);
+            if (cols.length >= 4) {
+                const date = cols[0].trim(); if (!globalData[date]) globalData[date] = [];
+                const high = parseFloat(cols[3]);
+                globalData[date] = globalData[date].filter(item => item.t !== cols[1]);
+                globalData[date].push({ t: cols[1], low: cols[2], high: cols[3], s: cols[4] ? cols[4].trim() : (high > 2.0 ? "Closed" : "Open") });
+            }
+        });
+    }
+    function showAuth() { document.getElementById('msgArea').style.display = 'none'; document.getElementById('authArea').style.display = 'block'; }
+    function checkAuth() { if (document.getElementById('adminPw').value === MASTER_PW) { document.getElementById('authArea').style.display = 'none'; document.getElementById('dataInputArea').style.display = 'block'; } else { alert("비밀번호 오류"); } }
+    function manualToggleFix() { document.getElementById('fixPanel').classList.toggle('active'); }
     function closeModal() { document.getElementById('modal').style.display = 'none'; }
-    window.onload = () => { renderNav(); init(); };
+    window.onload = init;
 </script>
 </body>
 </html>
