@@ -1,0 +1,27 @@
+name: Daesan Port Auto Scribe
+on:
+  schedule:
+    - cron: '0 23 * * *'  # 한국 시각 08:00 (어제 실적 확정 및 오늘 예보)
+    - cron: '30 7 * * *'  # 한국 시각 16:30 (내일/주말 예보 정밀화)
+  workflow_dispatch:      # 수동 버튼 (필요할 때 즉시 업데이트)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install dependencies
+        run: pip install requests
+      - name: Run Update Script
+        run: python update_wave.py
+      - name: Commit and Push
+        run: |
+          git config --global user.name 'Port-Bot'
+          git config --global user.email 'bot@github.com'
+          git add data.json
+          git commit -m "Auto-update Port Status (AM/PM Split)" || echo "No changes"
+          git push
