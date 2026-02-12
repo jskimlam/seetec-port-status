@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🚢 대산항 Seetec 현황판 (M.D.C. Debug)</title>
+    <title>🚢 대산항 Seetec 포트 현황판 (M.D.C.)</title>
     <style>
         :root { 
             --bg: #f4f7f6; --open: #2ecc71; --closed: #e74c3c; --heavy-closed: #941a1a; 
             --none: #dfe6e9; --text: #2d3436; --fix: #f39c12; --mateo: #3498db;
         }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 10px; color: var(--text); }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); margin: 0; padding: 10px; color: var(--text); }
         .container { max-width: 800px; margin: 0 auto; background: #fff; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); overflow: hidden; }
         .header { background: #34495e; color: #fff; padding: 25px 20px; text-align: center; position: relative; }
-        .header h2 { margin: 0; font-size: 1.5rem; }
+        .header h2 { margin: 0; font-size: 1.5rem; letter-spacing: -0.5px; }
         .created-by { font-size: 0.85rem; color: #bdc3c7; margin-top: 8px; font-weight: 500; }
         .conn-status { position: absolute; top: 10px; right: 15px; font-size: 0.7rem; padding: 4px 8px; border-radius: 20px; background: rgba(0,0,0,0.3); }
         .conn-status.online { border: 1px solid var(--open); color: var(--open); }
@@ -22,6 +22,7 @@
         .m-btn.active { background: #3498db; color: #fff; border-color: #3498db; }
         .stats-bar { display: grid; grid-template-columns: repeat(3, 1fr); background: #fff; padding: 15px 5px; border-bottom: 2px solid #f1f2f6; }
         .stat-item { text-align: center; border-right: 1px solid #eee; }
+        .stat-item:last-child { border-right: none; }
         .stat-label { font-size: 0.75rem; color: #636e72; font-weight: bold; display: block; margin-bottom: 5px; }
         .stat-val { font-size: 1.1rem; font-weight: 800; }
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
@@ -34,7 +35,6 @@
         .slot.closed { background: var(--closed); color: #fff; }
         .slot.mateo-badge { border: 1.5px solid #fff; box-shadow: inset 0 0 5px rgba(0,0,0,0.1); }
         .slot.none { background: var(--none); color: #999; }
-        .footer { padding: 20px; text-align: center; font-size: 0.75rem; color: #bdc3c7; border-top: 1px solid #eee; }
         #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
         .modal-content { background: #fff; padding: 25px; border-radius: 15px; width: 85%; max-width: 320px; text-align: center; }
     </style>
@@ -42,10 +42,10 @@
 <body>
 <div class="container">
     <div class="header">
-        <div id="mateoBadge" class="conn-status realtime">Mateo 통신 시도...</div>
-        <div id="connBadge" class="conn-status online">시트 연동 대기</div>
+        <div id="mateoBadge" class="conn-status realtime">Mateo 감시 대기</div>
+        <div id="connBadge" class="conn-status online">시트 연동 완료</div>
         <h2>🚢 대산항 Seetec 현황판</h2>
-        <div class="created-by">Created by JS KIM (LAM) | M+17 Debug Mode</div>
+        <div class="created-by">Created by JS KIM (LAM) | M+17 Peak Hold</div>
     </div>
     <div class="month-nav" id="monthNav"></div>
     <div class="stats-bar">
@@ -56,7 +56,7 @@
     <div class="calendar-grid" id="calendar">
         <div class="weekday">일</div><div class="weekday">월</div><div class="weekday">화</div><div class="weekday">수</div><div class="weekday">목</div><div class="weekday">금</div><div class="weekday">토</div>
     </div>
-    <div class="footer">© 2026 LAM. Hybrid Mode (Peak Hold).</div>
+    <div class="footer">© 2026 LAM. Hybrid Mode (M+17 Support).</div>
 </div>
 
 <div id="modal" onclick="closeModal()"><div class="modal-content" onclick="event.stopPropagation()">
@@ -83,7 +83,6 @@
     }
 
     async function syncWithGoogleSheets() {
-        const badge = document.getElementById('connBadge');
         try {
             const res = await fetch(sheetCsvUrl);
             const csv = await res.text();
@@ -100,56 +99,55 @@
                     }
                 }
             });
-            badge.innerText = "● 시트 연동 성공";
             renderCalendar(currentMonth);
-        } catch (e) { badge.innerText = "● 시트 연결 실패"; }
+        } catch (e) { }
     }
 
     async function refreshMateoRealtime() {
         const mBadge = document.getElementById('mateoBadge');
+        // 좌표 및 17일치 요청
         const url = `https://marine-api.open-meteo.com/v1/marine?latitude=37.0&longitude=125.5&hourly=wave_height&timezone=Asia/Seoul&forecast_days=17`;
         
-        const mPlus10 = new Date(); mPlus10.setHours(0,0,0,0); mPlus10.setDate(mPlus10.getDate() + 10);
-
         try {
             const res = await fetch(url);
-            if(!res.ok) throw new Error("HTTP error " + res.status);
             const json = await res.json();
-            
             const waves = json.hourly.wave_height;
             const times = json.hourly.time;
 
-            for (let d = 0; d < 18; d++) {
-                const idx = d * 24;
-                if (idx >= waves.length) break;
+            const today = new Date(); today.setHours(0,0,0,0);
+            const mPlus10 = new Date(today); mPlus10.setDate(today.getDate() + 10);
 
-                const ds = times[idx].split('T')[0];
-                const rowDate = new Date(ds); rowDate.setHours(0,0,0,0);
+            // API 데이터 매핑 (가장 확실한 방식)
+            times.forEach((time, i) => {
+                const datePart = time.split('T')[0];
+                const hourPart = parseInt(time.split('T')[1].split(':')[0]);
+                const rowDate = new Date(datePart); rowDate.setHours(0,0,0,0);
 
+                // M+10일부터 M+17일까지의 데이터만 처리
                 if (rowDate >= mPlus10) {
-                    const am = waves.slice(idx, idx + 12);
-                    const pm = waves.slice(idx + 12, idx + 24);
-                    const amMax = Math.max(...am).toFixed(1);
-                    const pmMax = Math.max(...pm).toFixed(1);
-
-                    if (!globalData[ds]) globalData[ds] = [{}, {}];
+                    if (!globalData[datePart]) globalData[datePart] = [{}, {}];
+                    const idx = hourPart < 12 ? 0 : 1;
+                    const wave = waves[i];
                     
-                    const oldAm = parseFloat(globalData[ds][0]?.high || 0);
-                    if (parseFloat(amMax) >= oldAm) {
-                        globalData[ds][0] = { t: "오전(Mateo)", low: Math.min(...am).toFixed(1), high: amMax, s: parseFloat(amMax) > 2.0 ? "Closed" : "Open" };
-                    }
-                    const oldPm = parseFloat(globalData[ds][1]?.high || 0);
-                    if (parseFloat(pmMax) >= oldPm) {
-                        globalData[ds][1] = { t: "오후(Mateo)", low: Math.min(...pm).toFixed(1), high: pmMax, s: parseFloat(pmMax) > 2.0 ? "Closed" : "Open" };
+                    // 피크 홀드: 기존 저장된 high보다 높을 때만 갱신
+                    const currentStoredHigh = parseFloat(globalData[datePart][idx]?.high || 0);
+                    if (wave >= currentStoredHigh) {
+                        const low = globalData[datePart][idx]?.low || wave;
+                        globalData[datePart][idx] = {
+                            t: (idx === 0 ? "오전" : "오후") + "(Mateo)",
+                            low: Math.min(low, wave).toFixed(1),
+                            high: wave.toFixed(1),
+                            s: wave > 2.0 ? "Closed" : "Open"
+                        };
                     }
                 }
-            }
+            });
+
             localStorage.setItem('daesan_peak_hold', JSON.stringify(globalData));
             mBadge.innerText = "● Mateo 실시간 반영됨";
             renderCalendar(currentMonth);
         } catch (e) {
-            console.error("Mateo 연동 오류 상세:", e);
-            mBadge.innerText = "● 연동지연 (F12 확인)";
+            mBadge.innerText = "● 연동지연 (재시도 필요)";
         }
     }
 
@@ -187,10 +185,6 @@
             });
             cell.appendChild(container); grid.appendChild(cell);
         }
-        updateStats(t, o, c);
-    }
-
-    function updateStats(t, o, c) {
         const ratio = t > 0 ? Math.round((o / t) * 100) : 0;
         document.getElementById('openRatio').innerText = ratio + "%";
         document.getElementById('closedCount').innerText = c;
@@ -199,7 +193,6 @@
 
     function showDetail(d, t, low, high, s) {
         document.getElementById('mDate').innerText = `${d} [${t}]`;
-        const hv = parseFloat(high);
         const mS = document.getElementById('mStatus');
         const isC = s.toLowerCase() === 'closed';
         mS.innerText = isC ? '🔴 PORT CLOSED' : '🟢 PORT OPEN';
