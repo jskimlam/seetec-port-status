@@ -61,49 +61,48 @@
 <body>
 <div class="container">
     <div class="header">
-        <div id="mateoBadge" class="conn-status realtime">Mateo 실시간 대기</div>
+        <div id="mateoBadge" class="conn-status realtime">Mateo 대기</div>
         <div id="connBadge" class="conn-status">시트 연결 확인 중...</div>
         <h2>🚢 대산항 Seetec 현황판</h2>
         <div class="created-by">Created by JS KIM (LAM)</div>
-        <button onclick="manualToggleFix()" style="background:var(--fix); color:#fff; border:none; padding:6px 12px; border-radius:5px; font-size:0.7rem; cursor:pointer; font-weight:bold; margin-top:15px;">픽스모드(수동입력)</button>
+        <button onclick="manualToggleFix()" style="background:var(--fix); color:#fff; border:none; padding:6px 12px; border-radius:5px; font-size:0.7rem; cursor:pointer; font-weight:bold; margin-top:15px;">픽스모드</button>
     </div>
 
     <div id="fixPanel" class="fix-panel">
         <div id="msgArea">
-            <strong style="color:var(--fix)">⚠️ 관리자 인증 필요</strong><br>
-            <button onclick="showAuth()" class="btn-main" style="margin-top:10px;">🔐 픽스모드 잠금해제</button>
+            <button onclick="showAuth()" class="btn-main">🔐 관리자 인증</button>
         </div>
         <div id="authArea">
             <input type="password" id="adminPw" placeholder="비밀번호">
             <button onclick="checkAuth()" class="btn-main">인증</button>
         </div>
         <div id="dataInputArea">
-            <textarea id="manualData" placeholder="날짜,시간,최저,최고,상태 형식 붙여넣기..."></textarea>
-            <button onclick="applyManualData()" class="btn-apply">데이터 적용</button>
+            <textarea id="manualData" placeholder="날짜,시간,최저,최고,상태..."></textarea>
+            <button onclick="applyManualData()" class="btn-apply">적용</button>
         </div>
     </div>
 
     <div class="month-nav" id="monthNav"></div>
     <div class="stats-bar">
         <div class="stat-item"><span class="stat-label">🟢 오픈율</span><span id="openRatio" class="stat-val" style="color:var(--open)">0%</span></div>
-        <div class="stat-item"><span class="stat-label">🔴 클로징 횟수</span><span id="closedCount" class="stat-val" style="color:var(--closed)">0회</span></div>
-        <div class="stat-item"><span class="stat-label">🚫 클로징 비율</span><span id="closedRatio" class="stat-val" style="color:var(--closed)">0%</span></div>
+        <div class="stat-item"><span class="stat-label">🔴 클로징</span><span id="closedCount" class="stat-val" style="color:var(--closed)">0</span></div>
+        <div class="stat-item"><span class="stat-label">🚫 비율</span><span id="closedRatio" class="stat-val" style="color:var(--closed)">0%</span></div>
     </div>
 
     <div class="calendar-grid" id="calendar">
         <div class="weekday">일</div><div class="weekday">월</div><div class="weekday">화</div><div class="weekday">수</div><div class="weekday">목</div><div class="weekday">금</div><div class="weekday">토</div>
     </div>
-    <div class="footer">© 2026 LAM. Powered by Google Sheets & Open-Meteo.</div>
+    <div class="footer">© 2026 LAM. Sheet(M~M+9) + Mateo(M+10~M+16) Hybrid Mode.</div>
 </div>
 
 <div id="modal" onclick="closeModal()"><div class="modal-content" onclick="event.stopPropagation()">
     <div id="mDate" style="font-weight:bold; margin-bottom:5px; color:#7f8c8d; font-size:0.9rem;"></div>
     <div id="mStatus" style="font-weight:bold; font-size:1.4rem; margin-bottom:15px;"></div>
     <div class="wave-detail-box">
-        <div><div class="wave-label">최저 파고(Min)</div><div id="mLow" class="wave-value">-</div></div>
-        <div><div class="wave-label">최고 파고(Max)</div><div id="mHigh" class="wave-value">-</div></div>
+        <div><div class="wave-label">최저 파고</div><div id="mLow" class="wave-value">-</div></div>
+        <div><div class="wave-label">최고 파고</div><div id="mHigh" class="wave-value">-</div></div>
     </div>
-    <button onclick="closeModal()" style="padding:10px 25px; border-radius:5px; border:1px solid #ddd; cursor:pointer; font-weight:bold;">창 닫기</button>
+    <button onclick="closeModal()" style="padding:10px 25px; border-radius:5px; border:1px solid #ddd; cursor:pointer; font-weight:bold;">닫기</button>
 </div></div>
 
 <script>
@@ -111,34 +110,29 @@
     let currentMonth = new Date().getMonth() + 1;
     let globalData = {};
     const MASTER_PW = "jskim0111";
-    // 사용자님이 주신 시트 주소를 API용 CSV 주소로 자동 변환
     const sheetCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSGrqzEdgECvgskv4CW-1-FdlAXq1ZIYomFapbQidCM8i2avijanfPHgOKk8Ajtyrt8a6VqbSvpT6uN/pub?output=csv";
 
     async function init() {
         renderNav();
-        // 1. 구글 시트 데이터 먼저 로드 (과거 실적용)
+        // 1. 구글 시트 데이터 로드 (전 기간 기본 데이터)
         await syncWithGoogleSheets();
-        // 2. 오늘부터 16일치는 Mateo API 실시간 데이터로 덮어쓰기
+        // 2. M+10일부터의 공백만 Mateo API로 정밀 업데이트
         await refreshMateoRealtime();
-        // 3. 로컬 픽스 데이터가 있다면 최종 적용
+        
         const savedData = localStorage.getItem('daesan_fix_data');
-        if (savedData) {
-            processDataText(savedData);
-            renderCalendar(currentMonth);
-        }
+        if (savedData) { processDataText(savedData); renderCalendar(currentMonth); }
     }
 
     async function syncWithGoogleSheets() {
         const badge = document.getElementById('connBadge');
         try {
             const response = await fetch(sheetCsvUrl);
-            if (!response.ok) throw new Error();
             const csvText = await response.text();
             parseCsvData(csvText);
-            badge.innerText = "● 시트 연동 성공";
+            badge.innerText = "● 시트 연동 중";
             badge.className = "conn-status online";
         } catch (e) {
-            badge.innerText = "● 로컬 데이터 모드";
+            badge.innerText = "● 연결 오류";
             badge.className = "conn-status fix";
         }
         renderCalendar(currentMonth);
@@ -147,12 +141,11 @@
     function parseCsvData(csv) {
         const lines = csv.split('\n');
         lines.forEach((line, i) => {
-            if(i === 0) return; // 헤더 제외
+            if(i === 0) return;
             const cols = line.split(',');
             if(cols.length >= 5) {
                 const date = cols[0].trim();
                 if(!globalData[date]) globalData[date] = [];
-                // 실시간 Mateo 데이터가 아직 없는 과거 날짜만 시트 데이터 수용
                 globalData[date].push({ t: cols[1], low: cols[2], high: cols[3], s: cols[4].trim() });
             }
         });
@@ -163,6 +156,12 @@
         const lat = 37.0, lon = 125.5;
         const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}&hourly=wave_height&timezone=Asia/Seoul&forecast_days=16`;
         
+        // M+10일 기준 계산
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const mPlus10 = new Date(today);
+        mPlus10.setDate(today.getDate() + 10);
+
         try {
             const response = await fetch(url);
             const json = await response.json();
@@ -172,24 +171,29 @@
             for (let d = 0; d < 16; d++) {
                 const idx = d * 24;
                 if (idx >= waves.length) break;
-                const dateStr = times[idx].split('T')[0];
-                const dayWaves = waves.slice(idx, idx + 24);
                 
-                if (dayWaves.length === 24) {
-                    const am = dayWaves.slice(0, 12), pm = dayWaves.slice(12, 24);
-                    const amM = Math.max(...am), pmM = Math.max(...pm);
-                    
-                    // Mateo 실시간 데이터가 시트 데이터보다 우선하도록 덮어쓰기
-                    globalData[dateStr] = [
-                        { t: "오전(Mateo실시간)", low: Math.min(...am).toFixed(1), high: amM.toFixed(1), s: amM > 2.0 ? "Closed" : "Open" },
-                        { t: "오후(Mateo실시간)", low: Math.min(...pm).toFixed(1), high: pmM.toFixed(1), s: pmM > 2.0 ? "Closed" : "Open" }
-                    ];
+                const dateStr = times[idx].split('T')[0];
+                const rowDate = new Date(dateStr);
+                rowDate.setHours(0,0,0,0);
+
+                // [핵심 로직] 날짜가 M+10일 이후인 경우만 Mateo API 데이터를 적용/덮어쓰기
+                if (rowDate >= mPlus10) {
+                    const dayWaves = waves.slice(idx, idx + 24);
+                    if (dayWaves.length === 24) {
+                        const am = dayWaves.slice(0, 12), pm = dayWaves.slice(12, 24);
+                        const amM = Math.max(...am), pmM = Math.max(...pm);
+                        
+                        globalData[dateStr] = [
+                            { t: "오전(Mateo실시간)", low: Math.min(...am).toFixed(1), high: amM.toFixed(1), s: amM > 2.0 ? "Closed" : "Open" },
+                            { t: "오후(Mateo실시간)", low: Math.min(...pm).toFixed(1), high: pmM.toFixed(1), s: pmM > 2.0 ? "Closed" : "Open" }
+                        ];
+                    }
                 }
             }
-            mBadge.innerText = "● Mateo 실시간(16일)";
+            mBadge.innerText = "● Mateo 적용(M+10~16)";
             renderCalendar(currentMonth);
         } catch (e) {
-            mBadge.innerText = "● Mateo 연동 지연";
+            mBadge.innerText = "● Mateo 지연";
         }
     }
 
@@ -200,7 +204,7 @@
                 const date = cols[0].trim();
                 if (!globalData[date]) globalData[date] = [];
                 const high = parseFloat(cols[3]);
-                globalData[date] = globalData[date].filter(item => item.t !== cols[1]); // 중복 제거
+                globalData[date] = globalData[date].filter(item => item.t !== cols[1]);
                 globalData[date].push({ t: cols[1], low: cols[2], high: cols[3], s: cols[4] ? cols[4].trim() : (high > 2.0 ? "Closed" : "Open") });
             }
         });
@@ -257,13 +261,9 @@
             });
             cell.appendChild(container); grid.appendChild(cell);
         }
-        updateStats(t, o, c);
-    }
-
-    function updateStats(t, o, c) {
         const ratio = t > 0 ? Math.round((o / t) * 100) : 0;
         document.getElementById('openRatio').innerText = ratio + "%";
-        document.getElementById('closedCount').innerText = c + "회";
+        document.getElementById('closedCount').innerText = c;
         document.getElementById('closedRatio').innerText = (t > 0 ? (100 - ratio) : 0) + "%";
     }
 
@@ -289,7 +289,7 @@
         if(!input) return;
         localStorage.setItem('daesan_fix_data', input);
         processDataText(input); renderCalendar(currentMonth);
-        alert("데이터가 로컬 브라우저에 저장되었습니다.");
+        alert("로컬 저장 완료");
     }
     function showAuth() { document.getElementById('msgArea').style.display = 'none'; document.getElementById('authArea').style.display = 'block'; }
     function checkAuth() { if (document.getElementById('adminPw').value === MASTER_PW) { document.getElementById('authArea').style.display = 'none'; document.getElementById('dataInputArea').style.display = 'block'; } else { alert("비밀번호 오류"); } }
