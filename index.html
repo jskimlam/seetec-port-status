@@ -12,6 +12,7 @@
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); margin: 0; padding: 10px; color: var(--text); }
         .container { max-width: 800px; margin: 0 auto; background: #fff; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); overflow: hidden; }
         
+        /* 디자인 복구: 진청색 헤더 스타일 */
         .header { background: #34495e; color: #fff; padding: 25px 20px; text-align: center; position: relative; }
         .header h2 { margin: 0; font-size: 1.5rem; letter-spacing: -0.5px; }
         .created-by { font-size: 0.85rem; color: #bdc3c7; margin-top: 8px; font-weight: 500; }
@@ -40,19 +41,22 @@
         .slot.closed { background: var(--closed); color: #fff; }
         .slot.heavy-closed { background: var(--heavy-closed); color: #fff; }
         .slot.mateo-badge { border: 1.5px solid #fff; box-shadow: inset 0 0 5px rgba(0,0,0,0.1); }
+        .slot.none { background: var(--none); color: #999; }
 
         .footer { padding: 20px; text-align: center; font-size: 0.75rem; color: #bdc3c7; border-top: 1px solid #eee; }
+        
         #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
         .modal-content { background: #fff; padding: 25px; border-radius: 15px; width: 85%; max-width: 320px; text-align: center; }
+        .wave-detail-box { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 10px; border: 1px solid #eee; }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="header">
-        <div id="mateoBadge" class="conn-status realtime">Mateo 감시 대기</div>
-        <div id="connBadge" class="conn-status">시트 연결 확인 중...</div>
+        <div id="mateoBadge" class="conn-status realtime">Mateo 통신 대기</div>
+        <div id="connBadge" class="conn-status online">시트 연결 확인 중</div>
         <h2>🚢 대산항 Seetec 현황판</h2>
-        <div class="created-by">Created by JS KIM (LAM)</div>
+        <div class="created-by">Created by JS KIM (LAM) | M+17 Peak Hold</div>
     </div>
 
     <div class="month-nav" id="monthNav"></div>
@@ -65,16 +69,17 @@
     <div class="calendar-grid" id="calendar">
         <div class="weekday">일</div><div class="weekday">월</div><div class="weekday">화</div><div class="weekday">수</div><div class="weekday">목</div><div class="weekday">금</div><div class="weekday">토</div>
     </div>
-    <div class="footer">© 2026 LAM. Sheet(M~M+9) + Mateo(M+10~M+17) Hybrid Mode.</div>
+    <div class="footer">© 2026 LAM. Hybrid Data Monitoring System.</div>
 </div>
 
 <div id="modal" onclick="closeModal()"><div class="modal-content" onclick="event.stopPropagation()">
     <div id="mDate" style="font-weight:bold; margin-bottom:5px; color:#7f8c8d; font-size:0.9rem;"></div>
     <div id="mStatus" style="font-weight:bold; font-size:1.4rem; margin-bottom:15px;"></div>
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; background:#f8f9fa; padding:15px; border-radius:10px;">
-        <div>최저 파고<br><b id="mLow">-</b></div><div>최고 피크<br><b id="mHigh">-</b></div>
+    <div class="wave-detail-box">
+        <div><div style="font-size:0.7rem; color:#999;">최저 파고</div><div id="mLow" style="font-size:1.1rem; font-weight:800;">-</div></div>
+        <div><div style="font-size:0.7rem; color:#999;">최고 피크</div><div id="mHigh" style="font-size:1.1rem; font-weight:800;">-</div></div>
     </div>
-    <button onclick="closeModal()" style="margin-top:15px; padding:10px 20px; border:1px solid #ddd; cursor:pointer; font-weight:bold;">닫기</button>
+    <button onclick="closeModal()" style="padding:10px 25px; border-radius:5px; border:1px solid #ddd; cursor:pointer; font-weight:bold; margin-top:15px;">닫기</button>
 </div></div>
 
 <script>
@@ -83,134 +88,148 @@
     let globalData = {};
     const sheetCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSGrqzEdgECvgskv4CW-1-FdlAXq1ZIYomFapbQidCM8i2avijanfPHgOKk8Ajtyrt8a6VqbSvpT6uN/pub?output=csv";
 
+    // 1. 초기화 실행
     async function init() {
         renderNav();
-        // 1. 로컬 저장소에서 기존 피크 데이터 복구
-        const savedPeaks = localStorage.getItem('daesan_peak_hold');
-        if (savedPeaks) globalData = JSON.parse(savedPeaks);
         
-        // 2. 구글 시트 및 Mateo API 순차 로드
+        // 로컬 저장소 Peak 데이터 복구
+        const saved = localStorage.getItem('daesan_peak_hold');
+        if (saved) globalData = JSON.parse(saved);
+
         await syncWithGoogleSheets();
         await refreshMateoRealtime();
     }
 
+    // 2. 구글 시트 연동 (M ~ M+9)
     async function syncWithGoogleSheets() {
         const badge = document.getElementById('connBadge');
         try {
-            const response = await fetch(sheetCsvUrl);
-            const csvText = await response.text();
-            csvText.split('\n').forEach((line, i) => {
-                if(i === 0) return;
+            const res = await fetch(sheetCsvUrl);
+            const csv = await res.text();
+            const lines = csv.split('\n').slice(1);
+            
+            lines.forEach(line => {
                 const cols = line.split(',');
-                if(cols.length >= 5) {
+                if (cols.length >= 5) {
                     const ds = cols[0].trim();
                     const rowDate = new Date(ds); rowDate.setHours(0,0,0,0);
                     const mPlus10 = new Date(); mPlus10.setHours(0,0,0,0); mPlus10.setDate(mPlus10.getDate() + 10);
-                    
-                    // M+10 이전 날짜만 시트 데이터로 강제 갱신
-                    if(rowDate < mPlus10) {
-                        if(!globalData[ds]) globalData[ds] = [];
-                        globalData[ds] = globalData[ds].filter(r => r.t && !r.t.includes("Mateo"));
-                        globalData[ds].push({ t: cols[1], low: cols[2], high: cols[3], s: cols[4].trim() });
+
+                    // M+10일 이전 데이터만 시트 정보로 수용
+                    if (rowDate < mPlus10) {
+                        if (!globalData[ds]) globalData[ds] = [{}, {}];
+                        // Mateo 데이터가 있다면 덮어쓰지 않음 (시트 우선)
+                        const isAM = cols[1].includes("오전");
+                        const idx = isAM ? 0 : 1;
+                        globalData[ds][idx] = { t: cols[1], low: cols[2], high: cols[3], s: cols[4].trim() };
                     }
                 }
             });
             badge.innerText = "● 시트 연동 성공"; badge.className = "conn-status online";
             renderCalendar(currentMonth);
-        } catch (e) { console.error("Sheet Error"); }
+        } catch (e) {
+            badge.innerText = "● 시트 연결 실패";
+        }
     }
 
+    // 3. Mateo API 연동 (M+10 ~ M+17) - Peak Hold 포함
     async function refreshMateoRealtime() {
         const mBadge = document.getElementById('mateoBadge');
         const lat = 37.0, lon = 125.5;
         const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}&hourly=wave_height&timezone=Asia/Seoul&forecast_days=17`;
         
-        const mPlus10 = new Date(); mPlus10.setHours(0,0,0,0); mPlus10.setDate(mPlus10.getDate() + 10);
+        const today = new Date(); today.setHours(0,0,0,0);
+        const mPlus10 = new Date(today); mPlus10.setDate(today.getDate() + 10);
 
         try {
-            const response = await fetch(url);
-            const json = await response.json();
+            const res = await fetch(url);
+            const json = await res.json();
+            if (!json.hourly) throw new Error("API Data Empty");
+
             const waves = json.hourly.wave_height;
             const times = json.hourly.time;
 
-            // 17일치 루프 (M+10 ~ M+17)
+            // 17일치 전체 탐색
             for (let d = 0; d < 18; d++) {
-                const idx = d * 24; if (idx >= waves.length) break;
-                const dateStr = times[idx].split('T')[0];
-                const rowDate = new Date(dateStr); rowDate.setHours(0,0,0,0);
+                const idx = d * 24;
+                if (idx >= waves.length) break;
 
+                const ds = times[idx].split('T')[0];
+                const rowDate = new Date(ds); rowDate.setHours(0,0,0,0);
+
+                // M+10일 이후부터만 Mateo 데이터 적용
                 if (rowDate >= mPlus10) {
                     const dayWaves = waves.slice(idx, idx + 24);
-                    const am = dayWaves.slice(0, 12), pm = dayWaves.slice(12, 24);
-                    const amMax = Math.max(...am).toFixed(1), pmMax = Math.max(...pm).toFixed(1);
+                    const am = dayWaves.slice(0, 12);
+                    const pm = dayWaves.slice(12, 24);
+                    const amMax = Math.max(...am).toFixed(1);
+                    const pmMax = Math.max(...pm).toFixed(1);
 
-                    if(!globalData[dateStr] || !Array.isArray(globalData[dateStr])) globalData[dateStr] = [{}, {}];
+                    if (!globalData[ds] || !Array.isArray(globalData[ds])) globalData[ds] = [{}, {}];
 
-                    // Peak Hold 로직: 기존 저장된 high보다 높을 때만 갱신
-                    const oldAm = parseFloat(globalData[dateStr][0]?.high || 0);
-                    if(parseFloat(amMax) >= oldAm) {
-                        globalData[dateStr][0] = { t: "오전(Mateo)", low: Math.min(...am).toFixed(1), high: amMax, s: parseFloat(amMax) > 2.0 ? "Closed" : "Open" };
+                    // Peak Hold 로직: 기존 값보다 클 때만 업데이트
+                    const oldAm = parseFloat(globalData[ds][0]?.high || 0);
+                    if (parseFloat(amMax) >= oldAm) {
+                        globalData[ds][0] = { t: "오전(Mateo)", low: Math.min(...am).toFixed(1), high: amMax, s: parseFloat(amMax) > 2.0 ? "Closed" : "Open" };
                     }
-                    const oldPm = parseFloat(globalData[dateStr][1]?.high || 0);
-                    if(parseFloat(pmMax) >= oldPm) {
-                        globalData[dateStr][1] = { t: "오후(Mateo)", low: Math.min(...pm).toFixed(1), high: pmMax, s: parseFloat(pmMax) > 2.0 ? "Closed" : "Open" };
+                    const oldPm = parseFloat(globalData[ds][1]?.high || 0);
+                    if (parseFloat(pmMax) >= oldPm) {
+                        globalData[ds][1] = { t: "오후(Mateo)", low: Math.min(...pm).toFixed(1), high: pmMax, s: parseFloat(pmMax) > 2.0 ? "Closed" : "Open" };
                     }
                 }
             }
             localStorage.setItem('daesan_peak_hold', JSON.stringify(globalData));
-            mBadge.innerText = "● Mateo 적용(M+10~17)";
+            mBadge.innerText = "● Mateo 실시간 반영됨";
             renderCalendar(currentMonth);
-        } catch (e) { 
+        } catch (e) {
             mBadge.innerText = "● Mateo 연동 지연";
             console.error("Mateo Error:", e);
         }
     }
 
-    function renderNav() {
-        const nav = document.getElementById('monthNav'); nav.innerHTML = '';
-        for(let m=1; m<=12; m++) {
-            const btn = document.createElement('button');
-            btn.className = `m-btn ${m === currentMonth ? 'active' : ''}`; btn.innerText = m + '월';
-            btn.onclick = () => { 
-                document.querySelectorAll('.m-btn').forEach(b => b.classList.remove('active')); 
-                btn.classList.add('active'); currentMonth = m; renderCalendar(m); 
-            };
-            nav.appendChild(btn);
-        }
-    }
-
+    // 4. 달력 렌더링 함수
     function renderCalendar(month) {
-        const grid = document.getElementById('calendar'); grid.querySelectorAll('.day-cell').forEach(c => c.remove());
+        const grid = document.getElementById('calendar');
+        grid.querySelectorAll('.day-cell').forEach(c => c.remove());
         const firstDay = new Date(year, month - 1, 1).getDay();
         const daysInMonth = new Date(year, month, 0).getDate();
         let t = 0, o = 0, c = 0;
 
-        for(let i=0; i<firstDay; i++) {
+        for (let i = 0; i < firstDay; i++) {
             const e = document.createElement('div'); e.className = 'day-cell'; e.style.background = '#f9f9f9'; grid.appendChild(e);
         }
 
-        for(let d=1; d<=daysInMonth; d++) {
+        for (let d = 1; d <= daysInMonth; d++) {
             const ds = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             const records = globalData[ds] || [];
+            
             const cell = document.createElement('div'); cell.className = 'day-cell';
             cell.innerHTML = `<div class="day-num">${d}</div>`;
             const container = document.createElement('div'); container.className = 'slot-container';
 
-            [{k:"오전", l:"AM"}, {k:"오후", l:"PM"}].forEach(p => {
-                const r = records.find(rec => rec.t && rec.t.includes(p.k));
+            [{k:"오전", l:"AM"}, {k:"오후", l:"PM"}].forEach((p, i) => {
+                const r = records[i];
                 const slot = document.createElement('div');
-                if(r) {
-                    const st = r.s ? r.s.trim().toLowerCase() : ""; const hv = parseFloat(r.high);
-                    if(st !== "" && st !== "발표대기중" && !isNaN(hv)) { t++; if(st === "closed") c++; else o++; }
-                    let sClass = st === 'closed' ? (hv >= 4.0 ? 'heavy-closed' : 'closed') : (st === 'open' ? 'open' : 'none');
+                if (r && r.t) {
+                    const st = r.s.trim().toLowerCase();
+                    const hv = parseFloat(r.high);
+                    if (!isNaN(hv)) { t++; if (st === "closed") c++; else o++; }
+                    
+                    let sClass = (st === 'closed') ? (hv >= 4.0 ? 'heavy-closed' : 'closed') : (st === 'open' ? 'open' : 'none');
                     slot.className = `slot ${sClass} ${r.t.includes("Mateo") ? 'mateo-badge' : ''}`;
-                    slot.innerHTML = `${st === 'closed' ? '🔴' : (st === 'open' ? '🟢' : '⏳')} ${p.l}`;
+                    slot.innerHTML = (st === 'closed' ? '🔴' : (st === 'open' ? '🟢' : '⏳')) + " " + p.l;
                     slot.onclick = () => showDetail(ds, r.t, r.low, r.high, r.s);
-                } else { slot.className = 'slot none'; slot.innerText = '---'; }
+                } else {
+                    slot.className = 'slot none'; slot.innerText = '---';
+                }
                 container.appendChild(slot);
             });
             cell.appendChild(container); grid.appendChild(cell);
         }
+        updateStats(t, o, c);
+    }
+
+    function updateStats(t, o, c) {
         const ratio = t > 0 ? Math.round((o / t) * 100) : 0;
         document.getElementById('openRatio').innerText = ratio + "%";
         document.getElementById('closedCount').innerText = c;
@@ -219,14 +238,24 @@
 
     function showDetail(d, t, low, high, s) {
         document.getElementById('mDate').innerText = `${d} [${t}]`;
-        const st = s ? s.trim().toLowerCase() : ""; const hv = parseFloat(high);
+        const hv = parseFloat(high);
         const mS = document.getElementById('mStatus');
-        const isC = st === 'closed';
+        const isC = s.toLowerCase() === 'closed';
         mS.innerText = isC ? (hv >= 4.0 ? '🚨 HEAVY CLOSED' : '🔴 PORT CLOSED') : '🟢 PORT OPEN';
         mS.style.color = isC ? (hv >= 4.0 ? '#941a1a' : '#e74c3c') : '#2ecc71';
-        document.getElementById('mLow').innerText = low ? low.toString().replace('m', '') + "m" : "-";
-        document.getElementById('mHigh').innerText = high ? high.toString().replace('m', '') + "m" : "-";
+        document.getElementById('mLow').innerText = low + "m";
+        document.getElementById('mHigh').innerText = high + "m";
         document.getElementById('modal').style.display = 'flex';
+    }
+
+    function renderNav() {
+        const nav = document.getElementById('monthNav'); nav.innerHTML = '';
+        for (let m = 1; m <= 12; m++) {
+            const btn = document.createElement('button');
+            btn.className = `m-btn ${m === currentMonth ? 'active' : ''}`; btn.innerText = m + '월';
+            btn.onclick = () => { currentMonth = m; document.querySelectorAll('.m-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); renderCalendar(m); };
+            nav.appendChild(btn);
+        }
     }
 
     function closeModal() { document.getElementById('modal').style.display = 'none'; }
