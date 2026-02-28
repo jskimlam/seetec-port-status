@@ -380,7 +380,8 @@
         .btn-close:hover { border-color: var(--navy); color: var(--navy); background: #e3ecfa; }
 
         /* ══ 모달 2: MarineTraffic 지도 ══ */
-        #mapModal {
+        #mapModal,
+        #mapModalYeosu {
             display: none;
             position: fixed;
             inset: 0;
@@ -612,7 +613,7 @@
                 <div class="map-port-dot-yeosu"></div>
                 <div class="map-port-label-yeosu">여수 중흥</div>
             </div>
-            <div class="map-coord">34.74°N 127.74°E</div>
+            <div class="map-coord">34.84°N 127.67°E</div>
             <div class="map-preview-overlay" style="border-color:rgba(0,188,212,0.4);background:rgba(0,188,212,0.1);">
                 <span style="color:#4dd0e1;">🗺️ 여수항<br>클릭하여 보기</span>
             </div>
@@ -715,7 +716,6 @@
                 src=""
                 data-src="https://www.marinetraffic.com/en/ais/embed/zoom:13/centery:37.0175/centerx:126.3542/shownames:true/maptype:4/"
                 allowfullscreen
-                onload="onIframeLoad('mapLoading')"
                 title="대산항 실시간 선박 AIS">
             </iframe>
         </div>
@@ -728,7 +728,7 @@
         <div class="map-modal-header" style="background: linear-gradient(135deg, #003344 0%, #005566 100%);">
             <div>
                 <div class="map-modal-title" style="color:#4dd0e1;">🗺️ 여수 중흥부두 실시간 선박 현황</div>
-                <div class="map-modal-sub">MarineTraffic AIS · 34.74°N 127.74°E · Yeosu Junghung Wharf</div>
+                <div class="map-modal-sub">MarineTraffic AIS · 34.84°N 127.67°E · Yeosu Junghung Wharf</div>
             </div>
             <button class="btn-map-close" onclick="closeMapModal()" style="border-color:rgba(0,188,212,0.4);">✕</button>
         </div>
@@ -737,13 +737,12 @@
                 <div class="loading-spinner" style="border-top-color:#00bcd4;"></div>
                 <div class="loading-text">지도 로딩 중...</div>
             </div>
-            <!-- 여수 중흥부두 좌표: 34.7400, 127.7420 / zoom 14으로 부두 근접 -->
+            <!-- 여수 중흥부두 좌표: 34.8407, 127.6740 -->
             <iframe
                 id="shipFrameYeosu"
                 src=""
-                data-src="https://www.marinetraffic.com/en/ais/embed/zoom:14/centery:34.7400/centerx:127.7420/shownames:true/maptype:4/"
+                data-src="https://www.marinetraffic.com/en/ais/embed/zoom:14/centery:34.8407/centerx:127.6740/shownames:true/maptype:4/"
                 allowfullscreen
-                onload="onIframeLoad('mapLoadingYeosu')"
                 title="여수 중흥부두 실시간 선박 AIS">
             </iframe>
         </div>
@@ -996,34 +995,40 @@
         document.getElementById('modal').style.display = 'none';
     }
 
+
     /* ══════════════════════════════
        MarineTraffic 지도 모달 열기
        port: 'daesan' | 'yeosu'
+       - iframe src는 클릭 시에만 주입 (지연 로딩)
+       - onload는 HTML 어트리뷰트 대신 JS addEventListener로 처리
+         → src="" 빈 상태에서 발화하는 자동 팝업 버그 방지
     ══════════════════════════════ */
     function openMapModal(port) {
-        // 대산항 or 여수 중흥부두 선택
         const isDaesan = (port === 'daesan');
-        const modalId  = isDaesan ? 'mapModal'        : 'mapModalYeosu';
-        const frameId  = isDaesan ? 'shipFrame'       : 'shipFrameYeosu';
-        const loadId   = isDaesan ? 'mapLoading'      : 'mapLoadingYeosu';
+        const modalId  = isDaesan ? 'mapModal'       : 'mapModalYeosu';
+        const frameId  = isDaesan ? 'shipFrame'      : 'shipFrameYeosu';
+        const loadId   = isDaesan ? 'mapLoading'     : 'mapLoadingYeosu';
 
         const modal   = document.getElementById(modalId);
         const iframe  = document.getElementById(frameId);
         const loading = document.getElementById(loadId);
 
-        // 처음 클릭 시에만 iframe src 세팅 (지연 로딩)
-        if (!iframe.src || iframe.src === window.location.href) {
+        // 처음 클릭 시에만 src 세팅 (이후 재클릭 시 재로딩 방지)
+        if (!iframe.dataset.loaded) {
             loading.classList.remove('hidden');
-            iframe.src = iframe.dataset.src;
+
+            // load 이벤트는 JS에서만 등록 (HTML onload 어트리뷰트 사용 안 함)
+            iframe.addEventListener('load', function onLoad() {
+                loading.classList.add('hidden');
+                iframe.removeEventListener('load', onLoad); // 1회만 실행
+            });
+
+            iframe.src = iframe.dataset.src;    // 이 순간 실제 로드 시작
+            iframe.dataset.loaded = 'true';     // 중복 로드 방지 플래그
         }
 
         modal.style.display = 'flex';
         document.body.style.overflow = 'hidden';
-    }
-
-    /* ── iframe 로드 완료 → 해당 스피너 숨김 ── */
-    function onIframeLoad(loadingId) {
-        document.getElementById(loadingId).classList.add('hidden');
     }
 
     /* ── 모든 지도 모달 닫기 ── */
