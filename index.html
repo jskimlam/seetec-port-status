@@ -310,12 +310,12 @@
             transition: filter 0.15s, transform 0.1s;
             border: 1px solid transparent;
         }
-        .slot:hover { filter: brightness(0.92); transform: scale(1.03); }
-        .slot.none         { background: var(--none);               color: #8fa8c0;              border-color: var(--border);            cursor: default; }
-        .slot.waiting      { background: #fff3cd;                   color: var(--waiting);       border-color: #f0c040; }
-        .slot.open         { background: #d4f5e2;                   color: #0d6e36;              border-color: #7dd6a8; }
-        .slot.closed       { background: #fde8e8;                   color: #b01a1a;              border-color: #f5a5a5; }
-        .slot.heavy-closed { background: #f5c6c6;                   color: var(--heavy);         border-color: #e07070; font-weight:900; }
+        .slot:hover { filter: brightness(0.88); transform: scale(1.03); }
+        .slot.none         { background: var(--none);  color: #8fa8c0;  border-color: var(--border); cursor: default; }
+        .slot.waiting      { background: #ffe08a;      color: #6b3a00;  border-color: #d4900a; font-weight:800; }
+        .slot.open         { background: #0c9a4a;      color: #ffffff;  border-color: #097a3a; text-shadow: 0 1px 2px rgba(0,0,0,0.25); }
+        .slot.closed       { background: #c41e1e;      color: #ffffff;  border-color: #961515; text-shadow: 0 1px 2px rgba(0,0,0,0.25); }
+        .slot.heavy-closed { background: #7a0000;      color: #ffcccc;  border-color: #500000; font-weight:900; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
 
         /* ── 푸터 ── */
         .footer {
@@ -395,10 +395,10 @@
             border: 1px solid var(--border);
             border-radius: 16px;
             overflow: hidden;
-            width: 92vw;
-            max-width: 1000px;
-            height: 80vh;
-            max-height: 680px;
+            width: 96vw;
+            max-width: 1200px;
+            height: 90vh;
+            max-height: 860px;
             display: flex;
             flex-direction: column;
             box-shadow: 0 20px 60px rgba(27,58,92,0.3);
@@ -684,7 +684,7 @@
             <iframe
                 id="shipFrame"
                 src=""
-                data-src="https://www.marinetraffic.com/en/ais/embed/zoom:13/centery:37.0175/centerx:126.3542/shownames:true/"
+                data-src="https://www.marinetraffic.com/en/ais/embed/zoom:13/centery:37.0175/centerx:126.3542/shownames:true/maptype:4/"
                 allowfullscreen
                 onload="onIframeLoad()"
                 title="대산항 실시간 선박 AIS">
