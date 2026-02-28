@@ -3,224 +3,983 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🚢 대산항 Seetec 포트 현황판 (M.D.C. Mateo Sync)</title>
+    <title>🚢 대산항 Seetec 포트 현황판</title>
+    <!-- Google Fonts: 항만/산업용 느낌의 폰트 조합 -->
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
     <style>
-        :root { 
-            --bg: #f4f7f6; --open: #2ecc71; --closed: #e74c3c; --heavy-closed: #941a1a; 
-            --none: #dfe6e9; --text: #2d3436; --mateo: #3498db;
+        /* ── CSS 변수 : 해군 블루 + 화이트 테마 ── */
+        :root {
+            --bg:           #e8eef4;        /* 연한 블루-그레이 배경 */
+            --surface:      #ffffff;        /* 카드: 순백 */
+            --surface2:     #f0f4f8;        /* 보조 배경: 아이스 블루 */
+            --navy:         #1b3a5c;        /* 해군 블루 (헤더) */
+            --navy-dark:    #122841;        /* 헤더 그라디언트 끝 */
+            --navy-mid:     #24527a;        /* 헤더 중간 */
+            --border:       #ccd8e6;        /* 경계선: 스틸 블루 */
+            --open:         #18a558;        /* 오픈: 선명 녹색 */
+            --closed:       #d63031;        /* 클로징: 선명 빨강 */
+            --heavy:        #a00000;        /* 헤비 클로징: 진빨 */
+            --none:         #e4ecf4;        /* 데이터 없음: 연블루 */
+            --text:         #1a2a3a;        /* 기본 텍스트: 다크 네이비 */
+            --text-muted:   #5a7a9a;        /* 보조 텍스트: 미디엄 블루 */
+            --accent:       #1565c0;        /* 포인트: 로열 블루 */
+            --accent2:      #c8860a;        /* 포인트 골드 */
+            --waiting:      #b06a00;        /* 대기중: 앰버 */
         }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); margin: 0; padding: 10px; color: var(--text); }
-        .container { max-width: 800px; margin: 0 auto; background: #fff; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); overflow: hidden; }
-        
-        /* 오리지널 진청색 헤더 디자인 */
-        .header { background: #34495e; color: #fff; padding: 25px 20px; text-align: center; position: relative; }
-        .header h2 { margin: 0; font-size: 1.5rem; letter-spacing: -0.5px; }
-        .created-by { font-size: 0.85rem; color: #bdc3c7; margin-top: 8px; font-weight: 500; }
-        .conn-status { position: absolute; top: 10px; right: 15px; font-size: 0.7rem; padding: 4px 8px; border-radius: 20px; background: rgba(0,0,0,0.3); }
-        .conn-status.online { border: 1px solid var(--open); color: var(--open); }
-        .conn-status.realtime { border: 1px solid var(--mateo); color: var(--mateo); right: auto; left: 15px; }
 
-        /* 월 선택 및 통계 바 */
-        .month-nav { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; padding: 15px; background: #f8f9fa; }
-        .m-btn { border: 1px solid #ddd; background: #fff; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.8rem; font-weight: bold; }
-        .m-btn.active { background: #3498db; color: #fff; border-color: #3498db; }
-        .stats-bar { display: grid; grid-template-columns: repeat(3, 1fr); background: #fff; padding: 15px 5px; border-bottom: 2px solid #f1f2f6; }
-        .stat-item { text-align: center; border-right: 1px solid #eee; }
-        .stat-label { font-size: 0.75rem; color: #636e72; font-weight: bold; display: block; margin-bottom: 5px; }
-        .stat-val { font-size: 1.1rem; font-weight: 800; }
+        /* ── 기본 리셋 ── */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 12px;
+        }
 
-        /* 달력 그리드 */
-        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
-        .weekday { background: #f1f2f6; text-align: center; padding: 10px 0; font-size: 0.8rem; font-weight: bold; border-bottom: 1px solid #eee; }
-        .day-cell { border-right: 1px solid #eee; border-bottom: 1px solid #eee; min-height: 105px; position: relative; background: #fff; }
-        .day-num { font-size: 0.75rem; font-weight: bold; padding: 5px; color: #636e72; }
-        
-        .slot-container { display: flex; flex-direction: column; height: 75px; gap: 2px; padding: 2px; }
-        .slot { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; border-radius: 4px; font-weight: bold; cursor: pointer; }
-        .slot.open { background: var(--open); color: #fff; }
-        .slot.closed { background: var(--closed); color: #fff; }
-        .slot.mateo-badge { border: 1.5px solid #fff; box-shadow: inset 0 0 5px rgba(0,0,0,0.1); }
-        .slot.none { background: var(--none); color: #999; }
+        /* ── 메인 컨테이너 ── */
+        .container {
+            max-width: 860px;
+            margin: 0 auto;
+            background: var(--surface);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(27,58,92,0.15);
+        }
 
-        .footer { padding: 20px; text-align: center; font-size: 0.75rem; color: #bdc3c7; border-top: 1px solid #eee; }
-        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-content { background: #fff; padding: 25px; border-radius: 15px; width: 85%; max-width: 320px; text-align: center; }
+        /* ══════════════════════════════
+           헤더: 좌우 2분할
+           왼쪽 = 제목/상태  |  오른쪽 = 대산항 미리보기
+        ══════════════════════════════ */
+        .header {
+            display: grid;
+            grid-template-columns: 1fr 200px; /* 좌: 제목 영역 / 우: 지도 박스 */
+            gap: 0;
+            background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy) 55%, var(--navy-mid) 100%);
+            border-bottom: 2px solid var(--border);
+            min-height: 120px;
+        }
+
+        /* 왼쪽 제목 영역 */
+        .header-left {
+            padding: 20px 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 6px;
+        }
+        .header-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 2rem;
+            letter-spacing: 3px;
+            color: #fff;
+            line-height: 1;
+            text-shadow: 0 0 20px rgba(88,166,255,0.4);
+        }
+        .header-sub {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            font-weight: 500;
+        }
+        .header-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 6px;
+        }
+        /* GAS 연결 상태 뱃지 */
+        .conn-badge {
+            font-size: 0.68rem;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            background: rgba(0,0,0,0.3);
+            transition: all 0.4s ease;
+        }
+        .conn-badge.online {
+            border-color: #18a558;
+            color: #18a558;
+            background: rgba(24,165,88,0.12);
+            box-shadow: 0 0 6px rgba(24,165,88,0.2);
+        }
+        .conn-badge.error {
+            border-color: #d63031;
+            color: #d63031;
+            background: rgba(214,48,49,0.1);
+        }
+        .created-by {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+        }
+
+        /* 오른쪽 대산항 지도 박스 */
+
+        /* 지도 배경 그리드 (항해 차트 느낌) */
+        .map-bg-grid {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(88,166,255,0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(88,166,255,0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        /* 항구 아이콘 및 레이블 */
+        .map-port-icon {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+        }
+        .map-port-dot {
+            width: 14px;
+            height: 14px;
+            background: var(--accent2);
+            border-radius: 50%;
+            margin: 0 auto 4px;
+            box-shadow: 0 0 0 3px rgba(240,180,41,0.3);
+            animation: portPulse 2s ease-in-out infinite;
+        }
+        @keyframes portPulse {
+            0%, 100% { box-shadow: 0 0 0 3px rgba(240,180,41,0.3); }
+            50%       { box-shadow: 0 0 0 8px rgba(240,180,41,0.05); }
+        }
+        .map-port-label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--accent2);
+            letter-spacing: 1px;
+            text-shadow: 0 0 6px rgba(0,0,0,0.8);
+        }
+        .map-coord {
+            position: absolute;
+            bottom: 6px;
+            left: 0; right: 0;
+            text-align: center;
+            font-size: 0.55rem;
+            color: var(--text-muted);
+            font-family: monospace;
+        }
+
+        /* 호버 오버레이 */
+        .map-preview-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(88,166,255,0.12);
+            border: 2px solid rgba(88,166,255,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 3;
+        }
+        .map-preview-overlay span {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--accent);
+            letter-spacing: 1px;
+            text-align: center;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+
+        /* 선박 아이콘들 (데코) */
+        .ship-dot {
+            position: absolute;
+            width: 5px;
+            height: 5px;
+            background: var(--open);
+            border-radius: 50%;
+            opacity: 0.7;
+        }
+
+        /* ── 월 네비게이션 ── */
+        .month-nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            padding: 12px 14px;
+            background: var(--surface2);
+            border-bottom: 1px solid var(--border);
+        }
+        .m-btn {
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text-muted);
+            padding: 6px 11px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.78rem;
+            font-weight: 700;
+            font-family: 'Noto Sans KR', sans-serif;
+            transition: all 0.2s;
+        }
+        .m-btn:hover { border-color: var(--accent); color: var(--accent); background: #e3ecfa; }
+        .m-btn.active {
+            background: var(--navy);
+            color: #fff;
+            border-color: var(--navy);
+            box-shadow: 0 2px 8px rgba(27,58,92,0.25);
+        }
+
+        /* ── 통계 바 ── */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            background: var(--surface2);
+            border-bottom: 2px solid var(--border);
+        }
+        .stat-item {
+            text-align: center;
+            padding: 12px 8px;
+            border-right: 1px solid var(--border);
+        }
+        .stat-item:last-child { border-right: none; }
+        .stat-label {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            font-weight: 700;
+            display: block;
+            margin-bottom: 4px;
+            letter-spacing: 0.5px;
+        }
+        .stat-val {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.6rem;
+            letter-spacing: 1px;
+        }
+
+        /* ── 캘린더 그리드 ── */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            background: var(--surface);
+        }
+        .weekday {
+            background: var(--navy);
+            text-align: center;
+            padding: 8px 0;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.85);
+            border-bottom: 1px solid var(--border);
+            border-right: 1px solid rgba(255,255,255,0.1);
+            letter-spacing: 1px;
+        }
+        .weekday:last-child { border-right: none; }
+
+        .day-cell {
+            border-right: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            min-height: 90px;
+            background: var(--surface);
+            transition: background 0.15s;
+        }
+        .day-cell:nth-child(7n+1) { border-left: none; }
+        .day-cell:nth-child(7n)   { border-right: none; }
+
+        .day-num {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 5px 6px 2px;
+            color: var(--text-muted);
+        }
+
+        /* AM/PM 슬롯 */
+        .slot-container {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            padding: 2px 4px 4px;
+        }
+        .slot {
+            flex: 1;
+            min-height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.58rem;
+            border-radius: 4px;
+            font-weight: 700;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+            transition: filter 0.15s, transform 0.1s;
+            border: 1px solid transparent;
+        }
+        .slot:hover { filter: brightness(0.92); transform: scale(1.03); }
+        .slot.none         { background: var(--none);               color: #8fa8c0;              border-color: var(--border);            cursor: default; }
+        .slot.waiting      { background: #fff3cd;                   color: var(--waiting);       border-color: #f0c040; }
+        .slot.open         { background: #d4f5e2;                   color: #0d6e36;              border-color: #7dd6a8; }
+        .slot.closed       { background: #fde8e8;                   color: #b01a1a;              border-color: #f5a5a5; }
+        .slot.heavy-closed { background: #f5c6c6;                   color: var(--heavy);         border-color: #e07070; font-weight:900; }
+
+        /* ── 푸터 ── */
+        .footer {
+            padding: 12px;
+            text-align: center;
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border);
+            background: var(--surface2);
+        }
+
+        /* ══ 모달 1: 파고 상세 ══ */
+        #modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(10,25,50,0.55);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+        .modal-content {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 28px 24px;
+            border-radius: 16px;
+            text-align: center;
+            width: 88%;
+            max-width: 300px;
+            box-shadow: 0 12px 40px rgba(27,58,92,0.2);
+            animation: modalIn 0.2s ease;
+        }
+        @keyframes modalIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to   { transform: scale(1);   opacity: 1; }
+        }
+        .wave-detail-box {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 18px 0;
+            padding: 14px;
+            background: var(--surface2);
+            border-radius: 10px;
+            border: 1px solid var(--border);
+        }
+        .wave-label { font-size: 0.72rem; color: var(--text-muted); margin-bottom: 4px; }
+        .wave-value { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; color: var(--text); }
+        .btn-close {
+            padding: 9px 22px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--surface2);
+            color: var(--text);
+            cursor: pointer;
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 700;
+            transition: all 0.2s;
+        }
+        .btn-close:hover { border-color: var(--navy); color: var(--navy); background: #e3ecfa; }
+
+        /* ══ 모달 2: MarineTraffic 지도 ══ */
+        #mapModal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(10,25,50,0.65);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(6px);
+        }
+        .map-modal-content {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+            width: 92vw;
+            max-width: 1000px;
+            height: 80vh;
+            max-height: 680px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 60px rgba(27,58,92,0.3);
+            animation: modalIn 0.25s ease;
+        }
+        .map-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            background: var(--navy);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .map-modal-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.1rem;
+            letter-spacing: 2px;
+            color: #fff;
+        }
+        .map-modal-sub {
+            font-size: 0.68rem;
+            color: rgba(255,255,255,0.6);
+            margin-top: 1px;
+        }
+        .btn-map-close {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        .btn-map-close:hover { background: rgba(214,48,49,0.6); border-color: #d63031; }
+
+        .map-iframe-wrapper {
+            flex: 1;
+            position: relative;
+            background: #d8e8f5;
+        }
+        .map-iframe-wrapper iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+        .map-loading {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #ddeaf5;
+            gap: 12px;
+            z-index: 1;
+            pointer-events: none;
+        }
+        .map-loading.hidden { display: none; }
+        .loading-spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid var(--border);
+            border-top-color: var(--navy);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+        }
+
+        /* ── 로딩 오버레이 ── */
+        #loadingOverlay {
+            padding: 40px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+        }
+        .data-spinner {
+            width: 28px;
+            height: 28px;
+            border: 2px solid var(--border);
+            border-top-color: var(--navy);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        /* ── 에러 메시지 ── */
+        #errorMsg {
+            display: none;
+            padding: 20px;
+            text-align: center;
+            color: var(--closed);
+            font-size: 0.82rem;
+            background: #fde8e8;
+            border: 1px solid #f5a5a5;
+            margin: 10px 14px;
+            border-radius: 8px;
+        }
+
+        /* ── 지도 박스: 해군 블루 계열로 ── */
+        .header-right {
+            position: relative;
+            cursor: pointer;
+            overflow: hidden;
+            border-left: 1px solid rgba(255,255,255,0.15);
+            background: #0f2540;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        .header-right:hover { background: #162f52; }
+        .header-right:hover .map-preview-overlay { opacity: 1; }
+
+        /* ── 반응형 ── */
+        @media (max-width: 600px) {
+            .header { grid-template-columns: 1fr 130px; }
+            .header-title { font-size: 1.4rem; }
+            .day-cell { min-height: 72px; }
+            .slot { font-size: 0.5rem; min-height: 22px; }
+            .map-modal-content { width: 98vw; height: 85vh; }
+        }
     </style>
 </head>
 <body>
+
 <div class="container">
+
+    <!-- ══════════════════════════════
+         헤더: 좌(제목) / 우(대산항 지도 박스)
+    ══════════════════════════════ -->
     <div class="header">
-        <div id="mateoBadge" class="conn-status realtime">Mateo 감시 중</div>
-        <div id="connBadge" class="conn-status online">시트 연동 성공</div>
-        <h2>🚢 대산항 Seetec 현황판</h2>
-        <div class="created-by">Created by JS KIM (LAM)</div>
-    </div>
+
+        <!-- 왼쪽: 제목 영역 -->
+        <div class="header-left">
+            <div class="header-title">🚢 대산항 Seetec 현황판</div>
+            <div class="header-sub">DAESAN PORT · WAVE HEIGHT MONITOR · 2026</div>
+            <div class="header-meta">
+                <!-- GAS 연결 상태 실시간 표시 -->
+                <span id="connBadge" class="conn-badge">● 연결 확인 중...</span>
+                <span class="created-by">Created by JS KIM (LAM)</span>
+            </div>
+        </div>
+
+        <!-- 오른쪽: 대산항 미리보기 클릭 → 지도 팝업 -->
+        <div class="header-right" onclick="openMapModal()" title="대산항 실시간 선박 현황 보기">
+            <!-- 항해 차트 배경 그리드 -->
+            <div class="map-bg-grid"></div>
+
+            <!-- 장식용 선박 도트들 -->
+            <div class="ship-dot" style="top:22%; left:25%;"></div>
+            <div class="ship-dot" style="top:55%; left:60%; background:var(--closed);"></div>
+            <div class="ship-dot" style="top:35%; left:75%; background:var(--accent);"></div>
+            <div class="ship-dot" style="top:70%; left:35%; background:var(--accent2);"></div>
+            <div class="ship-dot" style="top:15%; left:55%;"></div>
+            <div class="ship-dot" style="top:80%; left:70%;"></div>
+
+            <!-- 중앙 항구 아이콘 -->
+            <div class="map-port-icon">
+                <div class="map-port-dot"></div>
+                <div class="map-port-label">대산항</div>
+            </div>
+
+            <!-- 좌표 표시 -->
+            <div class="map-coord">37.02°N  126.35°E</div>
+
+            <!-- 호버 오버레이 -->
+            <div class="map-preview-overlay">
+                <span>🗺️ 실시간<br>선박 현황<br>클릭하여 보기</span>
+            </div>
+        </div>
+
+    </div><!-- /.header -->
+
+    <!-- ── 월 네비게이션 ── -->
     <div class="month-nav" id="monthNav"></div>
+
+    <!-- ── 통계 바 ── -->
     <div class="stats-bar">
-        <div class="stat-item"><span class="stat-label">🟢 오픈율</span><span id="openRatio" class="stat-val" style="color:var(--open)">0%</span></div>
-        <div class="stat-item"><span class="stat-label">🔴 클로징</span><span id="closedCount" class="stat-val" style="color:var(--closed)">0</span></div>
-        <div class="stat-item"><span class="stat-label">🚫 비율</span><span id="closedRatio" class="stat-val" style="color:var(--closed)">0%</span></div>
+        <div class="stat-item">
+            <span class="stat-label">🟢 오픈율</span>
+            <span id="openRatio" class="stat-val" style="color:var(--open)">0%</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">🔴 클로징 횟수</span>
+            <span id="closedCount" class="stat-val" style="color:var(--closed)">0회</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">🚫 클로징 비율</span>
+            <span id="closedRatio" class="stat-val" style="color:var(--closed)">0%</span>
+        </div>
     </div>
+
+    <!-- ── 에러 메시지 (GAS 연결 실패 시 표시) ── -->
+    <div id="errorMsg">
+        ⚠️ 데이터를 불러오지 못했습니다. 잠시 후 새로고침 해주세요.
+    </div>
+
+    <!-- ── 캘린더 그리드 ── -->
     <div class="calendar-grid" id="calendar">
-        <div class="weekday">일</div><div class="weekday">월</div><div class="weekday">화</div><div class="weekday">수</div><div class="weekday">목</div><div class="weekday">금</div><div class="weekday">토</div>
+        <!-- 요일 헤더 -->
+        <div class="weekday">일</div>
+        <div class="weekday">월</div>
+        <div class="weekday">화</div>
+        <div class="weekday">수</div>
+        <div class="weekday">목</div>
+        <div class="weekday">금</div>
+        <div class="weekday">토</div>
     </div>
-    <div style="text-align: center; padding: 10px;">
-        <button onclick="localStorage.removeItem('daesan_peak_hold'); location.reload();" style="font-size: 0.6rem; color: #ccc; background: none; border: none; cursor: pointer;">[Peak 기록 초기화]</button>
+
+    <!-- ── 데이터 로딩 중 표시 ── -->
+    <div id="loadingOverlay">
+        <div class="data-spinner"></div>
+        데이터 불러오는 중...
+    </div>
+
+    <!-- ── 푸터 ── -->
+    <div class="footer">
+        © 2026 LAM Advanced Procurement. All port data verified for Daesan Seetec Terminal.
+    </div>
+
+</div><!-- /.container -->
+
+
+<!-- ══════════════════════════════
+     모달 1: 파고 상세 정보
+══════════════════════════════ -->
+<div id="modal" onclick="closeDetailModal()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <div id="mDate" style="font-weight:700; margin-bottom:6px; color:var(--text-muted); font-size:0.85rem;"></div>
+        <div id="mStatus" style="font-weight:900; font-size:1.25rem; margin-bottom:2px;"></div>
+        <div class="wave-detail-box" id="waveBox">
+            <div>
+                <div class="wave-label">최저 파고 (Min)</div>
+                <div id="mLow" class="wave-value">-</div>
+            </div>
+            <div>
+                <div class="wave-label">최고 파고 (Max)</div>
+                <div id="mHigh" class="wave-value">-</div>
+            </div>
+        </div>
+        <button class="btn-close" onclick="closeDetailModal()">창 닫기</button>
     </div>
 </div>
 
-<div id="modal" onclick="closeModal()"><div class="modal-content" onclick="event.stopPropagation()">
-    <div id="mDate" style="font-weight:bold; margin-bottom:5px; color:#7f8c8d; font-size:0.9rem;"></div>
-    <div id="mStatus" style="font-weight:bold; font-size:1.4rem; margin-bottom:15px;"></div>
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; background:#f8f9fa; padding:15px; border-radius:10px;">
-        <div>최저 파고<br><b id="mLow">-</b></div><div>최고 피크<br><b id="mHigh">-</b></div>
+
+<!-- ══════════════════════════════
+     모달 2: MarineTraffic 대산항 실시간 지도
+══════════════════════════════ -->
+<div id="mapModal" onclick="closeMapModal()">
+    <div class="map-modal-content" onclick="event.stopPropagation()">
+
+        <!-- 지도 모달 헤더 -->
+        <div class="map-modal-header">
+            <div>
+                <div class="map-modal-title">🗺️ 대산항 실시간 선박 현황</div>
+                <div class="map-modal-sub">MarineTraffic AIS · 37.02°N 126.35°E · Daesan Port</div>
+            </div>
+            <button class="btn-map-close" onclick="closeMapModal()">✕</button>
+        </div>
+
+        <!-- iframe 래퍼 -->
+        <div class="map-iframe-wrapper">
+            <!-- 로딩 스피너 (iframe 로드 완료 전) -->
+            <div class="map-loading" id="mapLoading">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">지도 로딩 중...</div>
+            </div>
+            <!-- MarineTraffic iframe: 대산항 좌표 고정 -->
+            <iframe
+                id="shipFrame"
+                src=""
+                data-src="https://www.marinetraffic.com/en/ais/embed/zoom:13/centery:37.0175/centerx:126.3542/shownames:true/"
+                allowfullscreen
+                onload="onIframeLoad()"
+                title="대산항 실시간 선박 AIS">
+            </iframe>
+        </div>
+
     </div>
-    <button onclick="closeModal()" style="margin-top:15px; padding:10px 20px; border-radius:5px; border:1px solid #ddd;">닫기</button>
-</div></div>
+</div>
+
 
 <script>
-    const year = 2026;
-    let currentMonth = new Date().getMonth() + 1;
-    let globalData = {};
-    const sheetCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSGrqzEdgECvgskv4CW-1-FdlAXq1ZIYomFapbQidCM8i2avijanfPHgOKk8Ajtyrt8a6VqbSvpT6uN/pub?output=csv";
+    /* ══════════════════════════════
+       설정값
+    ══════════════════════════════ */
 
-    async function init() {
-        renderNav();
-        // 1. 피크 데이터 로컬 복구
-        const saved = localStorage.getItem('daesan_peak_hold');
-        if (saved) globalData = JSON.parse(saved);
+    const YEAR = 2026;                     // 표시 연도
 
-        await syncWithGoogleSheets();
-        await refreshMateoRealtime();
-        renderCalendar(currentMonth);
+    // ★★★ GAS Web App URL ★★★
+    // Code.gs 배포 후 아래 URL을 교체하세요
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbzLD2zu_d5fGBfruTV8IYS6FeGbI9x2t5ONinY4UvUJOqL2f8K4_7FVL5LokHp3N7b6/exec";
+
+    let currentMonth = new Date().getMonth() + 1;   // 현재 월 (기본)
+    let globalData   = {};                           // 전체 파싱된 데이터
+
+    /* ══════════════════════════════
+       초기화
+    ══════════════════════════════ */
+    function init() {
+        buildMonthNav();   // 월 버튼 생성
+        fetchGasData();    // GAS에서 데이터 로드
     }
 
-    async function syncWithGoogleSheets() {
-        try {
-            const res = await fetch(sheetCsvUrl + "&t=" + new Date().getTime());
-            const csv = await res.text();
-            csv.split('\n').slice(1).forEach(line => {
-                const cols = line.split(',');
-                if (cols.length >= 5) {
-                    const ds = cols[0].trim();
-                    const rowDate = new Date(ds); rowDate.setHours(0,0,0,0);
-                    const boundary = new Date('2026-02-24'); // 24일 이전은 시트 데이터 우선
-                    
-                    if (rowDate < boundary) {
-                        if (!globalData[ds]) globalData[ds] = { am: null, pm: null };
-                        const isAM = cols[1].includes("오전");
-                        const record = { t: cols[1], low: cols[2], high: cols[3], s: cols[4].trim() };
-                        if (isAM) globalData[ds].am = record; else globalData[ds].pm = record;
-                    }
-                }
-            });
-        } catch (e) { document.getElementById('connBadge').innerText = "시트 지연"; }
-    }
-
-    async function refreshMateoRealtime() {
-        const url = "https://marine-api.open-meteo.com/v1/marine?latitude=37.0&longitude=125.5&hourly=wave_height&timezone=Asia/Seoul&forecast_days=17";
-        try {
-            const res = await fetch(url);
-            const json = await res.json();
-            const waves = json.hourly.wave_height;
-            const times = json.hourly.time;
-
-            times.forEach((time, i) => {
-                const ds = time.split('T')[0];
-                const hour = parseInt(time.split('T')[1].split(':')[0]);
-                const rowDate = new Date(ds); rowDate.setHours(0,0,0,0);
-                const boundary = new Date('2026-02-24');
-
-                if (rowDate >= boundary) {
-                    if (!globalData[ds]) globalData[ds] = { am: null, pm: null };
-                    const isAM = hour < 12;
-                    const wave = waves[i];
-                    
-                    const existing = isAM ? globalData[ds].am : globalData[ds].pm;
-                    const oldHigh = existing && existing.t.includes("Mateo") ? parseFloat(existing.high) : 0;
-
-                    // [피크 홀드] 기존 고점보다 높을 때만 갱신
-                    if (wave >= oldHigh) {
-                        const rec = {
-                            t: (isAM ? "오전" : "오후") + "(Mateo)",
-                            low: (existing?.low || wave).toString(),
-                            high: wave.toFixed(1),
-                            s: wave > 2.0 ? "Closed" : "Open"
-                        };
-                        if (isAM) globalData[ds].am = rec; else globalData[ds].pm = rec;
-                    }
-                }
-            });
-            localStorage.setItem('daesan_peak_hold', JSON.stringify(globalData));
-            document.getElementById('mateoBadge').innerText = "● Mateo(2/24~3/1) 반영됨";
-        } catch (e) { document.getElementById('mateoBadge').innerText = "● Mateo 지연"; }
-    }
-
-    function renderCalendar(month) {
-        const grid = document.getElementById('calendar');
-        grid.querySelectorAll('.day-cell').forEach(c => c.remove());
-        const firstDay = new Date(year, month - 1, 1).getDay();
-        const daysInMonth = new Date(year, month, 0).getDate();
-        let t=0, o=0, c=0;
-
-        for (let i = 0; i < firstDay; i++) {
-            const e = document.createElement('div'); e.className = 'day-cell'; e.style.background = '#f9f9f9'; grid.appendChild(e);
-        }
-
-        for (let d = 1; d <= daysInMonth; d++) {
-            const ds = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-            const data = globalData[ds] || { am: null, pm: null };
-            const cell = document.createElement('div'); cell.className = 'day-cell';
-            cell.innerHTML = `<div class="day-num">${d}</div>`;
-            const container = document.createElement('div'); container.className = 'slot-container';
-
-            ["am", "pm"].forEach(type => {
-                const r = data[type];
-                const slot = document.createElement('div');
-                if (r && r.t) {
-                    const st = r.s.toLowerCase();
-                    const hv = parseFloat(r.high);
-                    if (!isNaN(hv)) { t++; if (st === "closed") c++; else o++; }
-                    
-                    slot.className = `slot ${st === 'closed' ? 'closed' : 'open'} ${r.t.includes("Mateo") ? 'mateo-badge' : ''}`;
-                    slot.innerHTML = (st === 'closed' ? '🔴' : '🟢') + " " + (type === "am" ? "AM" : "PM");
-                    slot.onclick = () => showDetail(ds, r.t, r.low, r.high, r.s);
-                } else { slot.className = 'slot none'; slot.innerText = '---'; }
-                container.appendChild(slot);
-            });
-            grid.appendChild(cell);
-        }
-        updateStats(t, o, c);
-    }
-
-    function updateStats(t, o, c) {
-        const ratio = t > 0 ? Math.round((o / t) * 100) : 0;
-        document.getElementById('openRatio').innerText = ratio + "%";
-        document.getElementById('closedCount').innerText = c;
-        document.getElementById('closedRatio').innerText = (t > 0 ? (100 - ratio) : 0) + "%";
-    }
-
-    function showDetail(d, t, low, high, s) {
-        document.getElementById('mDate').innerText = `${d} [${t}]`;
-        const isC = s.toLowerCase() === 'closed';
-        document.getElementById('mStatus').innerText = isC ? '🔴 PORT CLOSED' : '🟢 PORT OPEN';
-        document.getElementById('mStatus').style.color = isC ? '#e74c3c' : '#2ecc71';
-        document.getElementById('mLow').innerText = low + "m";
-        document.getElementById('mHigh').innerText = high + "m";
-        document.getElementById('modal').style.display = 'flex';
-    }
-
-    function renderNav() {
-        const nav = document.getElementById('monthNav'); nav.innerHTML = '';
+    /* ── 월 네비게이션 버튼 생성 ── */
+    function buildMonthNav() {
+        const nav = document.getElementById('monthNav');
+        nav.innerHTML = '';
         for (let m = 1; m <= 12; m++) {
             const btn = document.createElement('button');
-            btn.className = `m-btn ${m === currentMonth ? 'active' : ''}`; btn.innerText = m + '월';
-            btn.onclick = () => { currentMonth = m; document.querySelectorAll('.m-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); renderCalendar(m); };
+            btn.className = `m-btn ${m === currentMonth ? 'active' : ''}`;
+            btn.innerText  = `${m}월`;
+            btn.onclick = () => {
+                document.querySelectorAll('.m-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentMonth = m;
+                renderCalendar(m);
+            };
             nav.appendChild(btn);
         }
     }
-    function closeModal() { document.getElementById('modal').style.display = 'none'; }
+
+    /* ══════════════════════════════
+       GAS 데이터 fetch
+    ══════════════════════════════ */
+    async function fetchGasData() {
+        const badge   = document.getElementById('connBadge');
+        const loading = document.getElementById('loadingOverlay');
+        const errMsg  = document.getElementById('errorMsg');
+
+        // 로딩 상태 표시
+        badge.className  = 'conn-badge';
+        badge.innerText  = '● 연결 중...';
+        loading.style.display = 'block';
+        errMsg.style.display  = 'none';
+
+        try {
+            // GAS Web App GET 요청 (JSON 반환)
+            const res  = await fetch(GAS_URL + "?action=getData", { cache: "no-store" });
+            const json = await res.json();
+
+            if (!json || !json.data) throw new Error('응답 데이터 형식 오류');
+
+            parseGasJson(json.data);   // 데이터 파싱
+
+            // 연결 성공 처리
+            badge.className = 'conn-badge online';
+            badge.innerText = '● 온라인 연결 성공';
+            loading.style.display = 'none';
+            renderCalendar(currentMonth);
+
+        } catch (err) {
+            console.error('[GAS 연결 오류]', err);
+
+            // 연결 실패 처리
+            badge.className = 'conn-badge error';
+            badge.innerText = '● 연결 실패';
+            loading.style.display = 'none';
+            errMsg.style.display  = 'block';
+        }
+    }
+
+    /* ══════════════════════════════
+       GAS JSON 파싱
+       GAS에서 반환하는 형식:
+       { data: [ {date, time, low, high, status}, ... ] }
+    ══════════════════════════════ */
+    function parseGasJson(rows) {
+        globalData = {};
+        rows.forEach(row => {
+            const date = (row.date || '').trim();
+            if (!date) return;
+            if (!globalData[date]) globalData[date] = [];
+            globalData[date].push({
+                t:    (row.time   || '').trim(),
+                low:  (row.low    || '').toString().trim(),
+                high: (row.high   || '').toString().trim(),
+                s:    (row.status || '').trim()
+            });
+        });
+    }
+
+    /* ══════════════════════════════
+       캘린더 렌더링
+    ══════════════════════════════ */
+    function renderCalendar(month) {
+        const grid = document.getElementById('calendar');
+
+        // 기존 날짜 셀만 제거 (요일 헤더는 유지)
+        grid.querySelectorAll('.day-cell').forEach(c => c.remove());
+
+        const firstDay    = new Date(YEAR, month - 1, 1).getDay();  // 1일의 요일
+        const daysInMonth = new Date(YEAR, month, 0).getDate();      // 해당월 총 일수
+
+        let total = 0, openCnt = 0, closedCnt = 0;
+
+        // 1일 앞 빈 셀
+        for (let i = 0; i < firstDay; i++) {
+            const empty = document.createElement('div');
+            empty.className = 'day-cell';
+            empty.style.background = 'rgba(0,0,0,0.2)';
+            grid.appendChild(empty);
+        }
+
+        // 날짜별 셀 생성
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${YEAR}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const records = globalData[dateStr] || [];
+
+            // 날짜 셀 생성
+            const cell = document.createElement('div');
+            cell.className = 'day-cell';
+
+            // 날짜 번호
+            const numDiv = document.createElement('div');
+            numDiv.className = 'day-num';
+            numDiv.innerText = d;
+            cell.appendChild(numDiv);
+
+            // AM/PM 슬롯 컨테이너
+            const slotCon = document.createElement('div');
+            slotCon.className = 'slot-container';
+
+            // 오전/오후 슬롯 처리
+            [{ k: '오전', l: 'AM' }, { k: '오후', l: 'PM' }].forEach(period => {
+                const rec    = records.find(r => r.t.includes(period.k));
+                const slotEl = document.createElement('div');
+
+                if (rec) {
+                    const status  = rec.s.trim();
+                    const highVal = parseFloat(String(rec.high).replace(/[^0-9.]/g, ''));
+                    // 빈값(""), 발표대기중, NaN 모두 대기중으로 처리
+                    const isWait  = !status || status === '발표대기중' || isNaN(highVal) || rec.high === '' || rec.low === '';
+
+                    if (!isWait) {
+                        total++;
+                        if (status.toLowerCase() === 'closed') closedCnt++;
+                        else openCnt++;
+                    }
+
+                    // 슬롯 상태별 CSS 클래스 결정
+                    let sClass = 'none';
+                    let icon   = '---';
+
+                    if (isWait) {
+                        sClass = 'waiting';
+                        icon   = `⏳ ${period.l}`;
+                    } else if (status.toLowerCase() === 'closed') {
+                        sClass = (highVal >= 4.0) ? 'heavy-closed' : 'closed';
+                        icon   = `🔴 ${period.l}`;
+                    } else {
+                        sClass = 'open';
+                        icon   = `🟢 ${period.l}`;
+                    }
+
+                    slotEl.className = `slot ${sClass}`;
+                    slotEl.innerText = icon;
+
+                    // 클릭 → 파고 상세 모달 (대기중 제외)
+                    if (!isWait) {
+                        slotEl.onclick = () => showDetail(dateStr, rec.t, rec.low, rec.high, status);
+                    }
+
+                } else {
+                    // 데이터 없음
+                    slotEl.className = 'slot none';
+                    slotEl.innerText = '---';
+                }
+
+                slotCon.appendChild(slotEl);
+            });
+
+            cell.appendChild(slotCon);
+            grid.appendChild(cell);
+        }
+
+        // 통계 업데이트
+        updateStats(total, openCnt, closedCnt);
+    }
+
+    /* ══════════════════════════════
+       통계 바 업데이트
+    ══════════════════════════════ */
+    function updateStats(t, o, c) {
+        const ratio = t > 0 ? Math.round((o / t) * 100) : 0;
+        document.getElementById('openRatio').innerText   = ratio + '%';
+        document.getElementById('closedCount').innerText = c + '회';
+        document.getElementById('closedRatio').innerText = (t > 0 ? (100 - ratio) : 0) + '%';
+    }
+
+    /* ══════════════════════════════
+       파고 상세 모달 열기
+    ══════════════════════════════ */
+    function showDetail(d, t, low, high, s) {
+        document.getElementById('mDate').innerText = `${d}  (${t})`;
+
+        const status  = s.trim();
+        const highVal = parseFloat(String(high).replace(/[^0-9.]/g, ''));
+        const isClosed = status.toLowerCase() === 'closed';
+        const isHeavy  = highVal >= 4.0;
+
+        // 상태 텍스트 & 색상
+        const statusEl = document.getElementById('mStatus');
+        if (isClosed && isHeavy) {
+            statusEl.innerText   = '🚨 HEAVY CLOSED';
+            statusEl.style.color = 'var(--heavy)';
+        } else if (isClosed) {
+            statusEl.innerText   = '🔴 PORT CLOSED';
+            statusEl.style.color = 'var(--closed)';
+        } else {
+            statusEl.innerText   = '🟢 PORT OPEN';
+            statusEl.style.color = 'var(--open)';
+        }
+
+        // 파고 수치 (단위 m 보정)
+        const fmt = v => v && !String(v).includes('m') ? v + 'm' : v || '-';
+        document.getElementById('mLow').innerText  = fmt(low);
+        document.getElementById('mHigh').innerText = fmt(high);
+
+        document.getElementById('modal').style.display = 'flex';
+    }
+
+    /* ── 파고 모달 닫기 ── */
+    function closeDetailModal() {
+        document.getElementById('modal').style.display = 'none';
+    }
+
+    /* ══════════════════════════════
+       MarineTraffic 지도 모달 열기/닫기
+    ══════════════════════════════ */
+    function openMapModal() {
+        const modal   = document.getElementById('mapModal');
+        const iframe  = document.getElementById('shipFrame');
+        const loading = document.getElementById('mapLoading');
+
+        // iframe src가 비어 있으면 이제 로드 (지연 로딩: 처음 클릭 시만)
+        if (!iframe.src || iframe.src === window.location.href) {
+            loading.classList.remove('hidden');
+            iframe.src = iframe.dataset.src;   // data-src → src로 전환
+        }
+
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';  // 스크롤 잠금
+    }
+
+    /* ── iframe 로드 완료 → 스피너 숨김 ── */
+    function onIframeLoad() {
+        document.getElementById('mapLoading').classList.add('hidden');
+    }
+
+    /* ── 지도 모달 닫기 ── */
+    function closeMapModal() {
+        document.getElementById('mapModal').style.display = 'none';
+        document.body.style.overflow = '';         // 스크롤 복원
+    }
+
+    /* ── ESC 키로 모달 닫기 ── */
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+            closeDetailModal();
+            closeMapModal();
+        }
+    });
+
+    /* ── 페이지 로드 시 초기화 ── */
     window.onload = init;
 </script>
+
 </body>
 </html>
