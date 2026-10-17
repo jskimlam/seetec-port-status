@@ -554,6 +554,145 @@
             .slot { font-size: 0.5rem; min-height: 22px; }
             .map-modal-content { width: 98vw; height: 85vh; }
         }
+    
+        /* ── 보기 전환 탭 ── */
+        .view-tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            padding: 12px 16px 0;
+            background: var(--surface);
+        }
+        .view-tab {
+            border: 1px solid var(--border);
+            background: var(--surface2);
+            color: var(--text-muted);
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-family: inherit;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all .2s ease;
+        }
+        .view-tab:hover { border-color: var(--accent); color: var(--accent); }
+        .view-tab.active {
+            background: var(--navy);
+            border-color: var(--navy);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(27,58,92,.18);
+        }
+        .view-hidden { display: none !important; }
+
+        /* ── 월별 통계 화면 ── */
+        .year-stats-view { padding: 16px; }
+        .year-summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .year-card {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px;
+            text-align: center;
+        }
+        .year-card-label { color: var(--text-muted); font-size: .72rem; font-weight: 700; }
+        .year-card-value { display: block; margin-top: 4px; font-size: 1.35rem; font-weight: 900; }
+        .stats-chart-card, .stats-table-card {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 14px;
+        }
+        .stats-section-title {
+            font-size: .92rem;
+            font-weight: 900;
+            color: var(--navy);
+            margin-bottom: 4px;
+        }
+        .stats-section-sub {
+            font-size: .68rem;
+            color: var(--text-muted);
+            margin-bottom: 14px;
+        }
+        .monthly-chart {
+            height: 260px;
+            display: grid;
+            grid-template-columns: repeat(12, minmax(36px, 1fr));
+            align-items: end;
+            gap: 8px;
+            padding: 20px 6px 0;
+            border-bottom: 1px solid var(--border);
+            overflow-x: auto;
+        }
+        .month-bars {
+            height: 220px;
+            display: flex;
+            align-items: end;
+            justify-content: center;
+            gap: 3px;
+            position: relative;
+            padding-bottom: 24px;
+        }
+        .bar {
+            width: 13px;
+            min-height: 2px;
+            border-radius: 4px 4px 0 0;
+            position: relative;
+            transition: height .35s ease;
+        }
+        .bar.open { background: var(--open); }
+        .bar.closed { background: var(--closed); }
+        .bar:hover::after {
+            content: attr(data-value);
+            position: absolute;
+            left: 50%;
+            bottom: calc(100% + 5px);
+            transform: translateX(-50%);
+            background: var(--navy-dark);
+            color: #fff;
+            padding: 2px 6px;
+            border-radius: 5px;
+            font-size: .65rem;
+            white-space: nowrap;
+            z-index: 5;
+        }
+        .month-axis {
+            position: absolute;
+            bottom: 2px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: .65rem;
+            color: var(--text-muted);
+            font-weight: 700;
+        }
+        .chart-legend {
+            display: flex;
+            justify-content: center;
+            gap: 18px;
+            margin-top: 12px;
+            font-size: .72rem;
+            font-weight: 700;
+        }
+        .legend-dot { display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:5px; }
+        .stats-table-wrap { overflow-x: auto; }
+        .stats-table { width: 100%; border-collapse: collapse; min-width: 560px; font-size: .76rem; }
+        .stats-table th, .stats-table td { padding: 9px 8px; text-align: center; border-bottom: 1px solid var(--border); }
+        .stats-table th { background: var(--navy); color: #fff; font-weight: 800; }
+        .stats-table tbody tr:nth-child(even) { background: var(--surface2); }
+        .stats-table .open-text { color: var(--open); font-weight: 800; }
+        .stats-table .closed-text { color: var(--closed); font-weight: 800; }
+
+        @media (max-width: 620px) {
+            .year-summary { grid-template-columns: 1fr; }
+            .monthly-chart { grid-template-columns: repeat(12, 38px); }
+            .year-stats-view { padding: 12px; }
+        }
+
     </style>
 </head>
 <body>
@@ -621,11 +760,18 @@
 
     </div><!-- /.header -->
 
+    <!-- ── 화면 전환 탭 ── -->
+    <div class="view-tabs" role="tablist" aria-label="현황판 보기 전환">
+        <button id="calendarTabBtn" class="view-tab active" role="tab" aria-selected="true" onclick="setView('calendar')">📅 월별 현황</button>
+        <button id="statsTabBtn" class="view-tab" role="tab" aria-selected="false" onclick="setView('stats')">📊 연간 통계</button>
+    </div>
+
+
     <!-- ── 월 네비게이션 ── -->
-    <div class="month-nav" id="monthNav"></div>
+    <div class="month-nav calendar-view" id="monthNav"></div>
 
     <!-- ── 통계 바 ── -->
-    <div class="stats-bar">
+    <div class="stats-bar calendar-view">
         <div class="stat-item">
             <span class="stat-label">🟢 오픈율</span>
             <span id="openRatio" class="stat-val" style="color:var(--open)">0%</span>
@@ -641,12 +787,12 @@
     </div>
 
     <!-- ── 에러 메시지 (GAS 연결 실패 시 표시) ── -->
-    <div id="errorMsg">
+    <div id="errorMsg" class="calendar-view">
         ⚠️ 데이터를 불러오지 못했습니다. 잠시 후 새로고침 해주세요.
     </div>
 
     <!-- ── 캘린더 그리드 ── -->
-    <div class="calendar-grid" id="calendar">
+    <div class="calendar-grid calendar-view" id="calendar">
         <!-- 요일 헤더 -->
         <div class="weekday">일</div>
         <div class="weekday">월</div>
@@ -658,10 +804,47 @@
     </div>
 
     <!-- ── 데이터 로딩 중 표시 ── -->
-    <div id="loadingOverlay">
+    <div id="loadingOverlay" class="calendar-view">
         <div class="data-spinner"></div>
         데이터 불러오는 중...
     </div>
+
+
+    <!-- ── 연간 월별 통계 탭 ── -->
+    <section id="yearStatsView" class="year-stats-view view-hidden" aria-labelledby="statsTabBtn">
+        <div class="year-summary">
+            <div class="year-card">
+                <span class="year-card-label">연간 판정 완료</span>
+                <span id="yearTotal" class="year-card-value">0회</span>
+            </div>
+            <div class="year-card">
+                <span class="year-card-label">연간 Open 비율</span>
+                <span id="yearOpenRatio" class="year-card-value" style="color:var(--open)">0%</span>
+            </div>
+            <div class="year-card">
+                <span class="year-card-label">연간 Closed 횟수</span>
+                <span id="yearClosedCount" class="year-card-value" style="color:var(--closed)">0회</span>
+            </div>
+        </div>
+        <div class="stats-chart-card">
+            <div class="stats-section-title">월별 Open / Closed 횟수</div>
+            <div class="stats-section-sub">발표대기중 제외 · 오전/오후 건수 기준</div>
+            <div id="monthlyChart" class="monthly-chart" aria-label="월별 Open 및 Closed 막대그래프"></div>
+            <div class="chart-legend">
+                <span><i class="legend-dot" style="background:var(--open)"></i>Open</span>
+                <span><i class="legend-dot" style="background:var(--closed)"></i>Closed</span>
+            </div>
+        </div>
+        <div class="stats-table-card">
+            <div class="stats-section-title">월별 상세 통계</div>
+            <div class="stats-table-wrap">
+                <table class="stats-table">
+                    <thead><tr><th>월</th><th>Open</th><th>Closed</th><th>판정 완료</th><th>Open 비율</th><th>Closed 비율</th></tr></thead>
+                    <tbody id="monthlyStatsBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
 
     <!-- ── 푸터 ── -->
     <div class="footer">
@@ -812,6 +995,7 @@
             if (!json || !json.data) throw new Error('응답 데이터 형식 오류');
 
             parseGasJson(json.data);   // 데이터 파싱
+            renderYearStats();         // 연간 통계 갱신
 
             // 연결 성공 처리
             badge.className = 'conn-badge online';
@@ -956,6 +1140,82 @@
         document.getElementById('openRatio').innerText   = ratio + '%';
         document.getElementById('closedCount').innerText = c + '회';
         document.getElementById('closedRatio').innerText = (t > 0 ? (100 - ratio) : 0) + '%';
+    }
+
+
+    /* ══════════════════════════════
+       화면 탭 및 연간 통계
+    ══════════════════════════════ */
+    function setView(view) {
+        const isStats = view === 'stats';
+        document.querySelectorAll('.calendar-view').forEach(el => el.classList.toggle('view-hidden', isStats));
+        document.getElementById('yearStatsView').classList.toggle('view-hidden', !isStats);
+        const calendarBtn = document.getElementById('calendarTabBtn');
+        const statsBtn = document.getElementById('statsTabBtn');
+        calendarBtn.classList.toggle('active', !isStats);
+        statsBtn.classList.toggle('active', isStats);
+        calendarBtn.setAttribute('aria-selected', String(!isStats));
+        statsBtn.setAttribute('aria-selected', String(isStats));
+        if (isStats) renderYearStats();
+    }
+
+    function getMonthlyStats() {
+        return Array.from({ length: 12 }, (_, index) => {
+            const month = index + 1;
+            let open = 0, closed = 0;
+            Object.entries(globalData).forEach(([date, records]) => {
+                if (!date.startsWith(`${YEAR}-${String(month).padStart(2, '0')}-`)) return;
+                records.forEach(rec => {
+                    const high = parseFloat(String(rec.high).replace(/[^0-9.]/g, ''));
+                    const status = (rec.s || '').trim().toLowerCase();
+                    const waiting = !status || status === '발표대기중' || isNaN(high) || rec.high === '' || rec.low === '';
+                    if (waiting) return;
+                    if (status === 'closed') closed++;
+                    else if (status === 'open') open++;
+                });
+            });
+            const total = open + closed;
+            return {
+                month, open, closed, total,
+                openRatio: total ? Math.round(open / total * 1000) / 10 : 0,
+                closedRatio: total ? Math.round(closed / total * 1000) / 10 : 0
+            };
+        });
+    }
+
+    function renderYearStats() {
+        const stats = getMonthlyStats();
+        const annual = stats.reduce((acc, item) => {
+            acc.open += item.open;
+            acc.closed += item.closed;
+            return acc;
+        }, { open: 0, closed: 0 });
+        const annualTotal = annual.open + annual.closed;
+        const annualOpenRatio = annualTotal ? Math.round(annual.open / annualTotal * 1000) / 10 : 0;
+
+        document.getElementById('yearTotal').innerText = annualTotal + '회';
+        document.getElementById('yearOpenRatio').innerText = annualOpenRatio + '%';
+        document.getElementById('yearClosedCount').innerText = annual.closed + '회';
+
+        const maxValue = Math.max(1, ...stats.flatMap(item => [item.open, item.closed]));
+        document.getElementById('monthlyChart').innerHTML = stats.map(item => `
+            <div class="month-bars">
+                <div class="bar open" data-value="Open ${item.open}회" style="height:${Math.max(2, item.open / maxValue * 190)}px"></div>
+                <div class="bar closed" data-value="Closed ${item.closed}회" style="height:${Math.max(2, item.closed / maxValue * 190)}px"></div>
+                <span class="month-axis">${item.month}월</span>
+            </div>
+        `).join('');
+
+        document.getElementById('monthlyStatsBody').innerHTML = stats.map(item => `
+            <tr>
+                <td>${item.month}월</td>
+                <td class="open-text">${item.open}</td>
+                <td class="closed-text">${item.closed}</td>
+                <td>${item.total}</td>
+                <td class="open-text">${item.openRatio.toFixed(1)}%</td>
+                <td class="closed-text">${item.closedRatio.toFixed(1)}%</td>
+            </tr>
+        `).join('');
     }
 
     /* ══════════════════════════════
