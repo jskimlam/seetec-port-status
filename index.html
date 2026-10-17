@@ -618,34 +618,91 @@
             color: var(--text-muted);
             margin-bottom: 14px;
         }
+        .chart-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        .chart-head .stats-section-sub { margin-bottom: 0; }
+        .chart-mode-toggle {
+            display: inline-flex;
+            gap: 4px;
+            padding: 3px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            flex-shrink: 0;
+        }
+        .chart-mode-btn {
+            border: 0;
+            background: transparent;
+            color: var(--text-muted);
+            border-radius: 6px;
+            padding: 6px 10px;
+            font: inherit;
+            font-size: .68rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: background .2s, color .2s, transform .2s;
+        }
+        .chart-mode-btn:hover { transform: translateY(-1px); }
+        .chart-mode-btn.active {
+            background: var(--navy);
+            color: #fff;
+            box-shadow: 0 3px 8px rgba(27,58,92,.2);
+        }
         .monthly-chart {
-            height: 260px;
+            height: 300px;
             display: grid;
-            grid-template-columns: repeat(12, minmax(36px, 1fr));
+            grid-template-columns: repeat(12, minmax(56px, 1fr));
             align-items: end;
-            gap: 8px;
-            padding: 20px 6px 0;
+            column-gap: 10px;
+            padding: 20px 8px 0;
             border-bottom: 1px solid var(--border);
             overflow-x: auto;
         }
         .month-bars {
-            height: 220px;
+            height: 264px;
             display: flex;
             align-items: end;
             justify-content: center;
-            gap: 3px;
+            gap: 7px;
             position: relative;
-            padding-bottom: 24px;
+            padding-bottom: 26px;
         }
         .bar {
-            width: 13px;
-            min-height: 2px;
-            border-radius: 4px 4px 0 0;
+            width: 24px;
+            min-height: 3px;
+            border-radius: 7px 7px 2px 2px;
             position: relative;
-            transition: height .35s ease;
+            box-shadow: 0 5px 12px rgba(18,40,65,.13);
+            transition: height .45s cubic-bezier(.2,.8,.2,1), transform .2s, filter .2s;
         }
-        .bar.open { background: var(--open); }
-        .bar.closed { background: var(--closed); }
+        .bar:hover { transform: translateY(-4px) scaleX(1.06); filter: brightness(1.08); }
+        .bar.open { background: linear-gradient(180deg, #25c66f, var(--open)); }
+        .bar.closed { background: linear-gradient(180deg, #f05b5c, var(--closed)); }
+        .closing-line-chart {
+            width: 100%;
+            min-width: 720px;
+            height: 300px;
+            display: block;
+            overflow: visible;
+        }
+        .line-grid { stroke: var(--border); stroke-width: 1; stroke-dasharray: 5 6; }
+        .line-area { fill: url(#closingAreaGradient); }
+        .line-path {
+            fill: none;
+            stroke: var(--closed);
+            stroke-width: 7;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            filter: drop-shadow(0 5px 5px rgba(214,48,49,.2));
+        }
+        .line-point { fill: #fff; stroke: var(--closed); stroke-width: 5; }
+        .line-label { fill: var(--text-muted); font-size: 20px; font-weight: 700; }
+        .line-value { fill: var(--closed); font-size: 20px; font-weight: 900; }
         .bar:hover::after {
             content: attr(data-value);
             position: absolute;
@@ -689,8 +746,11 @@
 
         @media (max-width: 620px) {
             .year-summary { grid-template-columns: 1fr; }
-            .monthly-chart { grid-template-columns: repeat(12, 38px); }
+            .monthly-chart { grid-template-columns: repeat(12, 56px); }
             .year-stats-view { padding: 12px; }
+            .chart-head { flex-direction: column; }
+            .chart-mode-toggle { width: 100%; }
+            .chart-mode-btn { flex: 1; }
         }
 
     </style>
@@ -827,10 +887,18 @@
             </div>
         </div>
         <div class="stats-chart-card">
-            <div class="stats-section-title">월별 Open / Closed 횟수</div>
-            <div class="stats-section-sub">발표대기중 제외 · 오전/오후 건수 기준</div>
+            <div class="chart-head">
+                <div>
+                    <div id="chartTitle" class="stats-section-title">월별 Open / Closed 횟수</div>
+                    <div id="chartSub" class="stats-section-sub">발표대기중 제외 · 오전/오후 건수 기준</div>
+                </div>
+                <div class="chart-mode-toggle" role="group" aria-label="그래프 형태 선택">
+                    <button id="barChartBtn" class="chart-mode-btn active" type="button" onclick="setChartMode('bars')">막대</button>
+                    <button id="lineChartBtn" class="chart-mode-btn" type="button" onclick="setChartMode('line')">Closing 추세선</button>
+                </div>
+            </div>
             <div id="monthlyChart" class="monthly-chart" aria-label="월별 Open 및 Closed 막대그래프"></div>
-            <div class="chart-legend">
+            <div id="chartLegend" class="chart-legend">
                 <span><i class="legend-dot" style="background:var(--open)"></i>Open</span>
                 <span><i class="legend-dot" style="background:var(--closed)"></i>Closed</span>
             </div>
@@ -946,6 +1014,7 @@
 
     let currentMonth = new Date().getMonth() + 1;   // 현재 월 (기본)
     let globalData   = {};                           // 전체 파싱된 데이터
+    let chartMode    = 'bars';                       // 통계 그래프 형태
 
     /* ══════════════════════════════
        초기화
@@ -1183,6 +1252,74 @@
         });
     }
 
+    function setChartMode(mode) {
+        chartMode = mode === 'line' ? 'line' : 'bars';
+        document.getElementById('barChartBtn').classList.toggle('active', chartMode === 'bars');
+        document.getElementById('lineChartBtn').classList.toggle('active', chartMode === 'line');
+        document.getElementById('barChartBtn').setAttribute('aria-pressed', String(chartMode === 'bars'));
+        document.getElementById('lineChartBtn').setAttribute('aria-pressed', String(chartMode === 'line'));
+        renderStatsChart(getMonthlyStats());
+    }
+
+    function renderStatsChart(stats) {
+        const chart = document.getElementById('monthlyChart');
+        const legend = document.getElementById('chartLegend');
+        const title = document.getElementById('chartTitle');
+        const sub = document.getElementById('chartSub');
+
+        if (chartMode === 'line') {
+            const maxClosed = Math.max(1, ...stats.map(item => item.closed));
+            const points = stats.map((item, index) => {
+                const x = 50 + index * 100;
+                const y = 245 - (item.closed / maxClosed * 190);
+                return { x, y, item };
+            });
+            const pointList = points.map(point => `${point.x},${point.y}`).join(' ');
+            const areaPoints = `50,245 ${pointList} 1150,245`;
+            chart.className = 'monthly-chart';
+            chart.setAttribute('aria-label', '월별 Closing 횟수 추세선 그래프');
+            chart.innerHTML = `
+                <svg class="closing-line-chart" viewBox="0 0 1200 300" role="img" aria-labelledby="closingLineTitle closingLineDesc">
+                    <title id="closingLineTitle">월별 Closing 추세</title>
+                    <desc id="closingLineDesc">${stats.map(item => `${item.month}월 ${item.closed}회`).join(', ')}</desc>
+                    <defs>
+                        <linearGradient id="closingAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#d63031" stop-opacity=".30"/>
+                            <stop offset="100%" stop-color="#d63031" stop-opacity=".02"/>
+                        </linearGradient>
+                    </defs>
+                    <line class="line-grid" x1="50" y1="55" x2="1150" y2="55"/>
+                    <line class="line-grid" x1="50" y1="150" x2="1150" y2="150"/>
+                    <line class="line-grid" x1="50" y1="245" x2="1150" y2="245"/>
+                    <polygon class="line-area" points="${areaPoints}"/>
+                    <polyline class="line-path" points="${pointList}"/>
+                    ${points.map(point => `
+                        <circle class="line-point" cx="${point.x}" cy="${point.y}" r="8"/>
+                        <text class="line-value" x="${point.x}" y="${Math.max(24, point.y - 18)}" text-anchor="middle">${point.item.closed}</text>
+                        <text class="line-label" x="${point.x}" y="280" text-anchor="middle">${point.item.month}월</text>
+                    `).join('')}
+                </svg>`;
+            title.innerText = '월별 Closing 추세';
+            sub.innerText = 'Closed 판정만 선형으로 표시 · 발표대기중 제외';
+            legend.innerHTML = '<span><i class="legend-dot" style="background:var(--closed); border-radius:50%"></i>Closed 추세</span>';
+            return;
+        }
+
+        const maxValue = Math.max(1, ...stats.flatMap(item => [item.open, item.closed]));
+        chart.className = 'monthly-chart';
+        chart.setAttribute('aria-label', '월별 Open 및 Closed 막대그래프');
+        chart.innerHTML = stats.map(item => `
+            <div class="month-bars">
+                <div class="bar open" data-value="Open ${item.open}회" style="height:${Math.max(3, item.open / maxValue * 225)}px"></div>
+                <div class="bar closed" data-value="Closed ${item.closed}회" style="height:${Math.max(3, item.closed / maxValue * 225)}px"></div>
+                <span class="month-axis">${item.month}월</span>
+            </div>
+        `).join('');
+        title.innerText = '월별 Open / Closed 횟수';
+        sub.innerText = '발표대기중 제외 · 오전/오후 건수 기준';
+        legend.innerHTML = '<span><i class="legend-dot" style="background:var(--open)"></i>Open</span><span><i class="legend-dot" style="background:var(--closed)"></i>Closed</span>';
+    }
+
     function renderYearStats() {
         const stats = getMonthlyStats();
         const annual = stats.reduce((acc, item) => {
@@ -1197,14 +1334,7 @@
         document.getElementById('yearOpenRatio').innerText = annualOpenRatio + '%';
         document.getElementById('yearClosedCount').innerText = annual.closed + '회';
 
-        const maxValue = Math.max(1, ...stats.flatMap(item => [item.open, item.closed]));
-        document.getElementById('monthlyChart').innerHTML = stats.map(item => `
-            <div class="month-bars">
-                <div class="bar open" data-value="Open ${item.open}회" style="height:${Math.max(2, item.open / maxValue * 190)}px"></div>
-                <div class="bar closed" data-value="Closed ${item.closed}회" style="height:${Math.max(2, item.closed / maxValue * 190)}px"></div>
-                <span class="month-axis">${item.month}월</span>
-            </div>
-        `).join('');
+        renderStatsChart(stats);
 
         document.getElementById('monthlyStatsBody').innerHTML = stats.map(item => `
             <tr>
