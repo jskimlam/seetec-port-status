@@ -757,6 +757,8 @@
         .stats-table th, .stats-table td { padding: 9px 8px; text-align: center; border-bottom: 1px solid var(--border); }
         .stats-table th { background: var(--navy); color: #fff; font-weight: 800; }
         .stats-table tbody tr:nth-child(even) { background: var(--surface2); }
+        .historical-stats { min-width: 0; table-layout: fixed; }
+        .historical-stats tbody th { background: transparent; color: var(--text); font-weight: 700; }
         .stats-table .open-text { color: var(--open); font-weight: 800; }
         .stats-table .closed-text { color: var(--closed); font-weight: 800; }
 
@@ -888,6 +890,31 @@
 
     <!-- ── 연간 월별 통계 탭 ── -->
     <section id="yearStatsView" class="year-stats-view view-hidden" aria-labelledby="statsTabBtn">
+        <div class="stats-table-card" id="closingActual2025">
+            <h2 class="stats-section-title">2025년 대산 Closing 실적</h2>
+            <p class="stats-section-sub">월별 Closing 일수 및 월별 비중 · 제공 자료 기준</p>
+            <div class="stats-table-wrap">
+                <table class="stats-table historical-stats">
+                    <thead><tr><th scope="col">월</th><th scope="col">Closing 일수</th><th scope="col">월별 비중</th></tr></thead>
+                    <tbody>
+                        <tr><th scope="row">1월</th><td class="closed-text">10.2일</td><td class="closed-text">33%</td></tr>
+                        <tr><th scope="row">2월</th><td class="closed-text">18.8일</td><td class="closed-text">67%</td></tr>
+                        <tr><th scope="row">3월</th><td class="closed-text">13.3일</td><td class="closed-text">43%</td></tr>
+                        <tr><th scope="row">4월</th><td class="">5.4일</td><td class="">18%</td></tr>
+                        <tr><th scope="row">5월</th><td class="">-</td><td class="">-%</td></tr>
+                        <tr><th scope="row">6월</th><td class="">1.8일</td><td class="">6%</td></tr>
+                        <tr><th scope="row">7월</th><td class="">2일</td><td class="">7%</td></tr>
+                        <tr><th scope="row">8월</th><td class="">1.8일</td><td class="">6%</td></tr>
+                        <tr><th scope="row">9월</th><td class="">1.5일</td><td class="">5%</td></tr>
+                        <tr><th scope="row">10월</th><td class="closed-text">9.7일</td><td class="closed-text">31%</td></tr>
+                        <tr><th scope="row">11월</th><td class="closed-text">17.5일</td><td class="closed-text">58%</td></tr>
+                        <tr><th scope="row">12월</th><td class="closed-text">16.3일</td><td class="closed-text">53%</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="stats-section-sub" style="margin:12px 0 0">5월은 원본의 ‘-’ 표기를 유지했습니다. 아래 판정 횟수 통계와 집계 단위가 다릅니다.</p>
+        </div>
+        <h2 class="stats-section-title" style="margin:20px 0 12px">2026년 월별 판정 통계</h2>
         <div class="year-summary">
             <div class="year-card">
                 <span class="year-card-label">연간 판정 완료</span>
