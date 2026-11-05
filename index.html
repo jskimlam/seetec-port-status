@@ -771,6 +771,12 @@
             .chart-mode-btn { flex: 1; }
         }
 
+        .year-controls { display:flex; flex-wrap:wrap; gap:8px 10px; align-items:center; margin:12px 0 8px; color:var(--navy); font-size:.85rem; font-weight:700; }
+        .year-controls select { padding:6px 9px; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--navy); font:inherit; }
+        .year-source { flex-basis:100%; margin:0; color:var(--text-muted); font-size:.76rem; line-height:1.45; font-weight:500; }
+        .detail-compare { font-size:.84rem; color:var(--text-muted); margin:6px 0 10px; }
+        #calendar button.slot { font-family:inherit; min-width:0; }
+        #calendar button.slot:disabled { opacity:1; cursor:default; }
     </style>
 </head>
 <body>
@@ -785,7 +791,7 @@
         <!-- 왼쪽: 제목 영역 -->
         <div class="header-left">
             <div class="header-title">🚢 대산항 Seetec 현황판</div>
-            <div class="header-sub">DAESAN PORT · WAVE HEIGHT MONITOR · 2026</div>
+            <div class="header-sub">DAESAN PORT · WAVE HEIGHT MONITOR · 2024–2027</div>
             <div class="header-meta">
                 <!-- GAS 연결 상태 실시간 표시 -->
                 <span id="connBadge" class="conn-badge">● 연결 확인 중...</span>
@@ -844,6 +850,14 @@
         <button id="statsTabBtn" class="view-tab" role="tab" aria-selected="false" onclick="setView('stats')">📊 연간 통계</button>
     </div>
 
+
+    <div class="year-controls">
+        <label for="yearSelect">연도</label>
+        <select id="yearSelect" onchange="selectYear(this.value)"><option value="2024">2024년</option><option value="2025">2025년</option><option value="2026">2026년</option><option value="2027">2027년</option></select>
+        <label id="basisLabel" for="basisSelect" hidden>판정 기준</label>
+        <select id="basisSelect" onchange="selectBasis(this.value)" hidden><option value="wave">보정 파고</option><option value="alert">풍랑특보</option></select>
+        <p id="yearSource" class="year-source" aria-live="polite"></p>
+    </div>
 
     <!-- ── 월 네비게이션 ── -->
     <div class="month-nav calendar-view" id="monthNav"></div>
@@ -914,7 +928,7 @@
             </div>
             <p class="stats-section-sub" style="margin:12px 0 0">5월은 원본의 ‘-’ 표기를 유지했습니다. 아래 판정 횟수 통계와 집계 단위가 다릅니다.</p>
         </div>
-        <h2 class="stats-section-title" style="margin:20px 0 12px">2026년 월별 판정 통계</h2>
+        <h2 id="yearStatsTitle" class="stats-section-title" style="margin:20px 0 12px">월별 판정 통계</h2>
         <div class="year-summary">
             <div class="year-card">
                 <span class="year-card-label">연간 판정 완료</span>
@@ -959,7 +973,7 @@
 
     <!-- ── 푸터 ── -->
     <div class="footer">
-        © 2026 LAM Advanced Procurement. All port data verified for Daesan Seetec Terminal.
+        © LAM Advanced Procurement · 대산항 파고·특보 현황
     </div>
 
 </div><!-- /.container -->
@@ -972,6 +986,7 @@
     <div class="modal-content" onclick="event.stopPropagation()">
         <div id="mDate" style="font-weight:700; margin-bottom:6px; color:var(--text-muted); font-size:0.85rem;"></div>
         <div id="mStatus" style="font-weight:900; font-size:1.25rem; margin-bottom:2px;"></div>
+        <p id="mCompare" class="detail-compare" hidden></p>
         <div class="wave-detail-box" id="waveBox">
             <div>
                 <div class="wave-label">최저 파고 (Min)</div>
@@ -1049,22 +1064,100 @@
        설정값
     ══════════════════════════════ */
 
-    const YEAR = 2026;                     // 표시 연도
+    // 2024/2025: 검증된 부이 보정 파고와 기상청 풍랑특보의 읽기 전용 스냅샷.
+    // 각 오전·오후 레코드는 base36 최저 3자리, 최고 3자리(0.001m), 특보 겹침 2자리(분).
+    const archive = {"2024":"0oo1gf000ii110000ff0oo000cc0oo000cc0rr000ii1ml000oo110000ll1ml001gf1vu000uu1ji000oo0xx000ff1po1o1dc1yxa01101srdc0ii0xx000cc0ll000ii110000ii110000uu1a9000ll1a9000ll0xx000oo1gf000rr143000ii0xx000cc0ff000990ff000ll0uu000rr2b9k01ji2kia0143220a00ff110000990ll00066099000990rr000ii110000ii110000oo0xx000ff143000oo1dc000xx1ji000ll143000ii2kibo2ki330a02ki3olk02ec396a0253396k01vu2zxa01ml2trk01dc1sr000oo1ml000ii0rr000ff0rr000cc0ii000990rr000rr110000ll143000990ii000660cc000660ff000660cc00033066000330uu001dc1yxa01761yxk00rr1a9000oo110000ll0uu000cc0oo000ff0oo000ii0oo000uu1po000uu1sr000ll0uu000ll143001101a9000oo176000ll0uu000ii0rr000ll0rr000ii110000ff0ll000ff0oo000990rr000cc1gf000ii0xx000ii0rr000uu176001431ji000rr110000ll0uu000ll2zxa01sr3fck00rr1dc000cc0xx000ff0xx000ii0xx000uu143000uu176000oo1431o0uu363k01762b9a00uu1sra00rr1ml000rr1srk01431po3c0uu1dc000rr0xx000ii0xx000oo110000cc0rr000ff0oo000ff143000uu176000ll1a9000ll143000990xx000990cc000990ff000cc0oo000ii2nla02203lia01dc2kik00uu1761o0xx2b9k01dc1yx3c0uu1ji000ii0uu000cc0oo000990rr000990uu000ff0rr000ii1gf000rr176000xx1a9001a91ml001761vuf01101ji000ll143000990ii000990oo000ii0rr000ll0xx000ff0oo1o0oo2eck00ll143000ii0uu000oo110000cc0oo000cc0ll000cc0oo000990cc00066099000661sr501ji2qok00ii1a9000cc0rr000ii1ml1o1103c9k01gf2868c1761po000oo110000ff0rr000uu2206o1ml286k00uu1gf000ii0xx000cc0ff000990ff000cc0ff000cc0oo000xx1gf000cc0uu000990ff000990ii000990ii000cc0ii000ll1sr8c1431sra00oo110000ff0rr000cc0ff000660cc000660cc0006609900066099000660ll000cc0ff000990xx000ll110000oo110000ff0oo000cc0ii000990cc00066099000660990006609900066099000660cc000ii0rr000ff0uu000990ff000990ii000990ff000660cc000660990006609900066099000660cc0006609900066099000oo1a9a00ii1433c0ll0uu000ff0ll000cc0ff000660cc000660cc00066099000660990006609900033099000660uu000ll0rr000cc0oo000990cc000990cc000660cc00066099000cc110000ii0xx000ff0ii000990ff000660990006609900066099000660990006609900066099000660cc000660cc000uu1ji001101ji000ii0rr000990oo000660990006609900066099000660990006609900066099000660ll000ff1gfbo0oo110000uu1dc000xx1dca00ll1ji000cc0rr000660ii000660ff000cc110000ii0oo000ii1101o1a91jia00xx1poa00ll0uu000ii0rr000cc0ff000660cc000660cc000660ll000ff1mla00uu1vuk00ll0xx000ll110000rr110000xx1a9001101a9000ll143000ii0oo000cc0ii000990cc000990ff000990cc00066099000660660006609900066099000660cc000990cc000990cc0009909900066099000990oo000ii176000ll0uu000ii0uu000ii0uu000ff0uu000660cc00066099000660cc0006609900099099000990ll000ll0xx000ii0xx000ff0oo000990ff00066099000660cc000660cc00066099000660660006609900066099000660990006609900066099000ff0ll000990ii00066099000660cc000cc0oo000ii0uu000ff0ll000ff0oo000ff0oo000cc0oo000990ff000990cc000990cc000990ff000990cc000990ff000cc0ff000990ff000990cc000990ii000cc0ii000cc0ii000cc0ff000990ff00099110000ff143000cc0ll000cc0ll000ii0rr000ll1gf000ll110000ll1gf000ll0uu000oo0xx000ll0uu000ii0oo000cc0ff000990ff000990cc000660990006609900099099000990rr000ii2206o1gf286a01431ml500oo0xx000ll0uu000ii110500uu2kik01ji2hfa01431vua00oo0uu000oo1po3c1432536o0oo143000ii1sr1o176220k00xx1dc000ll143000ll0rr000ff0uu000ll0uu000ll0xx000uu1po500oo0xx000ff0oo000ff0ll000cc0ff000990ff000990cc000990ff000990ff000990ff000ff0ll000ff0ll000ii0rr000ff0rr001761jia01761jik01dc220a0143253dc0oo0xx000ii0rr000ll110000oo2538c1gf2536o0uu1ji000rr1a9001431vu8c1431mla00uu1mla00oo0uu000ii0uu000ii0oo000ii0uu000uu143000rr1a9001431a9501101mlk01ml1yxa01ji220k01761ml3c0xx1dc000ll110000ll0rr000ll0oo000oo110000rr0xx000rr0xx000ll0uu000ff0rr000cc0ff000990ff000990cc00066099000660cc000990ii000cc0ll000990ii0006609900066099000660ff000660cc000660990006609900066099000990ii000xx176001101dc000xx1a9000oo0xx000ff0ll000990ii000990ff000660ii000660990006609900033066000330660003309900033066000330990003306600033099000660cc000990cc000660ff000ll1gf000uu1yx8c1ji2hfa01a92zxbo0uu176000ff0xx000cc0ll000990ii000660cc000660990006609900066099000ff0xx00099143000ii0rr000990uu000ff0uu000990uu000cc0ii000990uu000ii0uu000cc0oo000990cc000660cc000990uu000ii110000ii0uu000990rr000990ll000ff0uu000oo110000ll110000ff0xx000ff110000cc0ff000990cc000660cc000660cc000660990006609900066099000330ff000660cc000660cc000cc0ll000ff0rr000oo0xx000oo1a9000ii0ll000cc0ii000ll0uu000ff0xx000ll0xx000ii0oo000ii0rr000ff0ll000990ff000990ff000990cc000990cc000ff0xx000oo1gf001101poa00xx1mlk01101poa00rr1dc000uu110000cc0xx000ii0oo000cc0ll000990cc000990ff000990cc000990ll000ff0ii000cc0ll000ii0uu000990rr000ii0uu000660oo000cc0ii000990ff000ff1vua01ml2hfk01a91sra00xx1ml000ii0uu000990ll000cc0ii000660ff000660ff000660ff000990ll000660ff000990ii000cc176000oo176000ii0uu000ff0ii000660ii000660ll000990oo000660990006609900066099000660cc000660cc000660cc000990xx000ff0uu000cc0ll000cc0xx000ll143000990xx000990ff000990cc000cc0rr000oo1a96o1po2qoa01ml2zxk01761po000rr1po000ll0oo000cc0oo000cc0oo000992b96o2nl3ura01ml2trf00ll143000cc0rr000ii0oo000990ii000990ii000990ii000ff0oo000ii1dc000rr176000ff0uu000ii0rr000cc0oo000cc0ll000990oo000990ii000990cc000cc0ll000ff143000xx176000ll143000cc0oo000cc0rr000rr143000uu220ic1a91po8c1762ec6o1a91yxa0143286k00ll143000cc0rr000cc0ii000990ff000990ff000660ff000990cc000990ff000cc0ll000cc0oo000ll0uu000ff0rr000cc0oo000660ff000660rr000ff0uu000ff0oo000cc0ll000cc0ii000cc1761o1sr2tra01a92wuk01ml2wua01102ecgo0ff0uu000660ll000990ii00066110000rr110000uu1ji001dc1poa01761srdc0ll0xx000cc0oo000990cc000660cc000990oo000ii2b9dc2203lia02zx3xuk03634d9a03964a6k02zx3roa01yx3xuk01ji2eca01gf2kik01761sr3c1101dc000ii0rr000ff0xx000uu14300110220k01761po3c0ii176000rr1ji000ii1gf001431sra01102b9k01761sr501101dc000oo110000uu2206o1gf2b9a00rr1yx3c0ii0xx000ll0rr000ff0uu000ff0ll000rr0xx000uu1yxic1431gf000rr1dc000ii0rr000oo2536o1po220a01101yx3c1yx2eca01ji2b9a00rr1gf000oo1gf000ii0rr000991a9001431mla0176286k00oo1ml000990uu000cc0ii00000110001vu2zxa02ec3ifk01762nla00xx1sr500uu1dc000xx176000uu143000ii110000990ff000cc143001ml286a01vu2eck01761sra00rr253k01po2hfa01dc1vugo1101sr000rr1a9001a91ji001761ml001po1yxa00rr1sr6o","2025":"0oo0xx000ii110000ff0ll000cc0xx000oo1dc000ll1ml000ii110000990oo000uu1ml000uu1ml001761yx501sr2zxk01761vua01431yxk01431mla01102zxk01po2wua02203c9k01dc286a00rr1sr3c0oo143000ll0xx000990ll000cc110000ll0rr000ll1gf000xx176000rr176001ml2eca0110253f00xx1ji001101ml000ll1gf000cc0rr00066099000660ff000cc0rr000ii0xx000ii0ll000ff0oo000cc0ii000990ll000ii0ll000cc0ll000cc0oo000990ii000cc0ll000990oo000ff0rr000990oo000oo110000cc0xx001gf2wua02ki3xuk0363440a02tr3rok02202tra01102b9dc0ll0uu000cc0ll000ff110000oo110000ii0rr000ii110000ii0uu000ff176002532zxa01gf2kik02202zxa01a92hfk01431jia00oo2eck00uu1dc000uu1yx001ml440a02tr4jfk01sr2kia01gf286k00rr1a9000rr110000ll176000ll1a9000cc0ii000990oo000rr0xx000ll2zxgo1102531o0rr1a9000xx1gf000ll143000cc0ii000cc0ll000990ff000cc220bo1a9220a01a91pok01431mla01a91yxk01dc220a01a91yxk01431dc001a91po6o1101dc000xx1dc001101po000xx1gf001a91vu8c1ml286k01gf1po000rr1ji000ll110000001gf00110176000ii110000cc0ll000990oo000cc0ll000990rr000990cc000660ff000990ff000661poa01431yxa00uu1jik00oo1sra00ll1mldc0ff0xx000cc176000uu143000uu1ml000ll0xx000cc0oo00066099000990cc000990cc000660990000006600033066000660990003306600066099000660ii000990ff000660ff000660cc000660oo000cc0oo000cc0oo00176220a01vu3ifk01762hf8c0rr1ji502863ifa01po363k00uu1a9000ff110000uu0xx000uu176000xx176000rr143000oo0uu000oo0uu000ll0oo000ii0oo000ll110000oo0xx000ll110000xx1ji000rr143000ff143000oo143000oo2kidc1sr2qoa01a92qok00oo1dc000xx1ml000ii0xx000ff0uu000ii0oo000ff0rr000ff0ll000ff0oo000cc0ll000cc0oo000ff110000990ll00066099000660ff000ii0uu000oo1dc000oo0xx000ii0rr000cc0oo000ii1ji000xx1dc000oo143000ff0ii000990ff000660cc000990ff000660cc00066099000990ff000ii1vuk01dc2eca01ml2kik01761mla01432trk00uu1gf000ff0xx000ff0rr000ll1ml001gf1po3c1761po000oo143000ff0oo000oo143000ll143000ff0oo000990ii00066099000660cc000ff0ii000cc0rr000ff0uu000990ll000990cc000990xx000ii0uu000990ll000990ii000ii0uu000oo176000ff110000990ll000cc1dc000cc0oo000990ll000rr176000xx1jif01a91sra00xx1poa00oo110000cc0oo000990oo000990oo000ll0xx000ff0uu000cc0ff000990ff000660cc000990ll000990ff000660cc00066066000660cc000660uu000ll1a9go1761mla01dc1sra00uu110000ii0xx000ff0oo000ll0uu000rr143000oo176000rr176000oo176000oo0xx000ff0rr000cc0ii000cc0ll000660ii00099110000uu1dc000cc143000990ff000ff1sr001761ml000oo1dc000ff0rr000cc0ii000cc0ii000cc0rr000ff0ll000990ii000cc0ff000cc0oo000990ff000660ff000990ff000660cc000990cc000660cc000660cc000660ff00066099000330660003306600033066000660990006606600033066000660cc00033066000660ff000ii0ll000ii0uu000ll0uu000ii0rr000cc0ff000cc0oo000oo0xx000uu143000oo110000ii0uu000ff0ff000990ff00066099000000cc000990ff000990uu000ff0ll000cc0ff000660990006609900066099000660uu000cc0ii000990ii000ff0rr000ll143000ll0rr000ll1a9000uu143000oo143000ii0oo000cc0ll000ll0uu000ii1a9001761sr1o1po2kik00xx1a9000ii143000ff0ll000cc0ll000cc0ff000990cc00066099000660ff000cc0ll000990rr000990ff000660cc00099099000660cc000990ff000660cc000cc0ii000ff0rr000ll0rr000ll0uu000ll0rr000ll0uu000oo0uu000ii0uu000ii0oo000ii0xx000uu176000uu1dc000oo110000oo0xx000ll0rr000ll0rr000ii0ll000990ii000990cc000660ii000ff0oo000ff0oo000ff0oo000990ll000ff0oo000990ll000cc0ii000990cc000990cc000660cc000cc0rr000ii143000cc0rr000cc0oo000ll143000uu253bo1101jia00xx1a9a00xx1dc000oo143000xx143000rr1a9000oo110000ll0xx000rr110000oo0xx000ll0uu000oo0uu000ii0oo000ff0ll000990ff000990ii000990cc00066099000990cc000990ff000990cc000990ff000cc0ff000cc0ii000cc0ff000990ff000cc0ff000cc0ii000ii0uu000oo0xx000ll0oo000ff0oo000ff0ff000cc0ff000ff0ff000ff2208c0oo110000ii0uu000ff0ii000ff0ii000xx1a9000rr143000rr110000rr110000ll0xx000ff0ll000cc0ff000990ff000990oo000ff0rr000ff0uu000ff0ll000cc0ii000990ii000oo1yx8c1gf286k00xx1a9000ll143000ll0rr000ii0ll000ff0ll000ii0rr000oo0rr000ii0uu000ll0rr000ll110000ll0rr000oo0xx000rr0xx000oo110000ii0rr000cc0oo000cc0ll000cc0ll000cc0ll000cc0ii000cc0ii000ii0oo000oo0xx000rr1ji000uu1a9000oo110000ii0uu000990oo000660ff000ff143001101a9000rr176000ii0oo000ff0ll000ii0xx000oo1a9001761ji000uu1dc000ff0rr000cc0ii00099099000660cc000cc0rr000cc0uu000990ii000990ii000oo143000uu1gf000oo0xx000ff0uu000cc0ff000990cc000660cc000660cc000330oo000660oo000cc0ll000990ii000cc0uu000cc0uu000xx1po8c0ii176000ff0ll000cc0ii000990cc000660cc000990ii000ff0uu000ff143000oo1ml000uu176000ii143000ii0rr000cc143000oo1a9000uu1ml000rr143000ff0xx000ii0uu000990oo000990oo000cc0rr000rr1gfa00uu1ml6o0ll0uu000ff0ll000ff0ii000cc0ii000cc0cc000990cc000ff0oo000ff0oo000ll0oo000ff0ll000990cc00066099000660cc000cc0rr00099099000990ff000ii176001761po000oo0uu000cc0oo000990ii000990ii000990ff000ff2hf961761ji3c0ll143000ll110000cc0uu000ii0oo000ii0oo001101gf001431ml000uu110000oo110000ii0rr000990ff000cc0ff000cc110000oo0rr000ii0rr000rr0xx000ff0rr000oo1dc000ll0uu000rr110000ff0rr3c1dc1yxa01431vuk00ll110a01101pok01gf220a01a91pok01a91jia01101dcic0rr0xx000oo0uu000ll0uu000ii143000ll0uu000ff0rr000uu0xx000rr0xx000cc0rr000oo1sr1o1a9286a00uu1gf3c0ii0uu000cc0ii000ii0rr000990uu000cc0rr000990ii000990ii000990ll001761po000xx1sr1o1gf2b9a01vu2qok00oo1ml000cc110000660cc000660cc000990cc000660ii000000ii000660rr000cc0ll000990ff000cc0ll000990ii000ff0uu000ll1po001a9220000uu1ji000cc0rr000cc0ii000990cc000660cc000990ll000ii1a9000ii110000ii0rr000660ff00066099000660oo000ll1sr501sr2eca01ml286k01a9220a00oo1ji1o0rr1dc000ff176000oo1dc001431ml000ll1dc000ii0xx000ll0uu000ff0oo000oo0xx000rr176000rr143000ii0xx001762tra01po396k00oo1dc000ff0uu001dc220a02203rok0110220500ii1gf000ii1vu001dc286000uu176000rr0xx001a91po500uu1po001101gf00176253ci0uu1poa00rr2eck00rr1ji000ll2trbo1761yx8c0ff1dc000ii1sr6o1dc253k01431gf000rr1ji8c1a91vu000oo1gf000ff0ll000990ff000cc0oo000ii143000xx1po8c1ji2trk00xx1poa00ll1dc000ff0oo000ii0uu001762nla01dc2ecic0uu1a9000ll110000xx176000rr176000uu176000xx1ml000ff0uu000990ll000ff0uu000oo1a9000ll0xx000ll286bo1ji2hfa00xx1yx3c0ff0uu000990ll000ff0uu000ii143000xx1dc001101ml6o1a9220a02533lik01ji2kia00ll1yx500cc0uu000oo110000ii0rr000ii176000xx1a9000xx1a9000oo1gf000990xx001a91vu0014322000"};
+    const parts = Object.fromEntries(new Intl.DateTimeFormat("en", { timeZone:"Asia/Seoul", year:"numeric", month:"numeric" }).formatToParts(new Date()).map(p => [p.type, p.value]));
+    const supportedYears = [2024, 2025, 2026, 2027];
+    const currentKstYear = Number(parts.year);
+    let YEAR = Math.min(2027, Math.max(2024, currentKstYear));
+    let basis = "wave";
+    let liveState = "loading";
+    let liveData = Object.create(null);
+    const archiveCache = Object.create(null);
 
     // ★★★ GAS Web App URL ★★★
     // Code.gs 배포 후 아래 URL을 교체하세요
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzLD2zu_d5fGBfruTV8IYS6FeGbI9x2t5ONinY4UvUJOqL2f8K4_7FVL5LokHp3N7b6/exec";
 
-    let currentMonth = new Date().getMonth() + 1;   // 현재 월 (기본)
+    let currentMonth = YEAR === currentKstYear ? Number(parts.month) : 1;
     let globalData   = {};                           // 전체 파싱된 데이터
     let chartMode    = 'bars';                       // 통계 그래프 형태
 
     /* ══════════════════════════════
        초기화
     ══════════════════════════════ */
+
     function init() {
-        buildMonthNav();   // 월 버튼 생성
-        fetchGasData();    // GAS에서 데이터 로드
+        refreshYear();
+        fetchGasData();
+    }
+
+    function selectYear(value) {
+        const next = Number(value);
+        if (!supportedYears.includes(next) || next === YEAR) return;
+        YEAR = next;
+        basis = "wave";
+        closeDetailModal();
+        refreshYear();
+    }
+
+    function selectBasis(value) {
+        basis = archive[YEAR] && value === "alert" ? "alert" : "wave";
+        closeDetailModal();
+        refreshYear();
+    }
+
+    function readArchive(year) {
+        if (archiveCache[year]) return archiveCache[year];
+        const result = Object.create(null);
+        const encoded = archive[year];
+        for (let i = 0; i < encoded.length; i += 8) {
+            const n = i / 8;
+            const day = new Date(Date.UTC(year, 0, 1 + Math.floor(n / 2))).toISOString().slice(0, 10);
+            const low = parseInt(encoded.slice(i, i + 3), 36);
+            const high = parseInt(encoded.slice(i + 3, i + 6), 36);
+            const minutes = parseInt(encoded.slice(i + 6, i + 8), 36);
+            (result[day] ||= []).push({
+                t: n % 2 ? "오후" : "오전",
+                low: (low / 1000).toFixed(3), high: (high / 1000).toFixed(3),
+                s: high > 2000 ? "Closed" : "Open",
+                alert: minutes > 0 ? "Closed" : "Open", minutes
+            });
+        }
+        return archiveCache[year] = result;
+    }
+
+    function refreshYear() {
+        const historical = Boolean(archive[YEAR]);
+        globalData = historical ? readArchive(YEAR) : (liveData[YEAR] || Object.create(null));
+        document.getElementById("yearSelect").value = String(YEAR);
+        const selector = document.getElementById("basisSelect");
+        selector.value = basis;
+        selector.hidden = !historical;
+        document.getElementById("basisLabel").hidden = !historical;
+        document.getElementById("yearStatsTitle").textContent = YEAR + "년 월별 판정 통계" + (historical ? (basis === "alert" ? " · 풍랑특보" : " · 보정 파고") : "");
+        document.getElementById("closingActual2025").hidden = YEAR !== 2025 && YEAR !== 2026;
+        const hasData = Object.keys(globalData).length > 0;
+        const note = historical
+            ? "과거 추정 · 보정 파고(×1.110)와 풍랑특보 비교. 실제 운영 실적 아님. ⓘ: 판정 불일치."
+            : YEAR === 2027 && !hasData
+                ? "2027년 1~12월 달력 · 파고 데이터가 없는 구간은 발표대기중입니다."
+                : "운영 시트의 파고 판정 · 파고가 비어 있는 구간은 통계에서 제외합니다.";
+        document.getElementById("yearSource").textContent = note;
+        const badge = document.getElementById("connBadge");
+        const showLive = !historical && (YEAR === 2026 || hasData);
+        badge.className = "conn-badge" + (historical || (showLive && liveState === "online") ? " online" : showLive && liveState === "error" ? " error" : "");
+        badge.textContent = historical ? "● 과거 자료" : !showLive ? "● 발표대기중" : liveState === "online" ? "● 온라인 연결 성공" : liveState === "error" ? "● 연결 실패" : "● 연결 중...";
+        document.getElementById("loadingOverlay").style.display = showLive && liveState === "loading" ? "block" : "none";
+        document.getElementById("errorMsg").style.display = showLive && liveState === "error" ? "block" : "none";
+        buildMonthNav();
+        renderCalendar(currentMonth);
+        renderYearStats();
+    }
+
+    function activeStatus(record) {
+        return basis === "alert" && archive[YEAR] ? record.alert : record.s;
     }
 
     /* ── 월 네비게이션 버튼 생성 ── */
@@ -1088,62 +1181,38 @@
     /* ══════════════════════════════
        GAS 데이터 fetch
     ══════════════════════════════ */
+
     async function fetchGasData() {
-        const badge   = document.getElementById('connBadge');
-        const loading = document.getElementById('loadingOverlay');
-        const errMsg  = document.getElementById('errorMsg');
-
-        // 로딩 상태 표시
-        badge.className  = 'conn-badge';
-        badge.innerText  = '● 연결 중...';
-        loading.style.display = 'block';
-        errMsg.style.display  = 'none';
-
         try {
-            // GAS Web App GET 요청 (JSON 반환)
-            const res  = await fetch(GAS_URL + "?action=getData", { cache: "no-store" });
+            const res = await fetch(GAS_URL + "?action=getData", { cache: "no-store" });
+            if (!res.ok) throw new Error("HTTP " + res.status);
             const json = await res.json();
-
-            if (!json || !json.data) throw new Error('응답 데이터 형식 오류');
-
-            parseGasJson(json.data);   // 데이터 파싱
-            renderYearStats();         // 연간 통계 갱신
-
-            // 연결 성공 처리
-            badge.className = 'conn-badge online';
-            badge.innerText = '● 온라인 연결 성공';
-            loading.style.display = 'none';
-            renderCalendar(currentMonth);
-
+            if (!Array.isArray(json?.data)) throw new Error("응답 데이터 형식 오류");
+            liveData = parseGasJson(json.data);
+            liveState = "online";
         } catch (err) {
-            console.error('[GAS 연결 오류]', err);
-
-            // 연결 실패 처리
-            badge.className = 'conn-badge error';
-            badge.innerText = '● 연결 실패';
-            loading.style.display = 'none';
-            errMsg.style.display  = 'block';
+            console.error("[GAS 연결 오류]", err);
+            liveState = "error";
         }
+        if (!archive[YEAR]) refreshYear();
     }
 
-    /* ══════════════════════════════
-       GAS JSON 파싱
-       GAS에서 반환하는 형식:
-       { data: [ {date, time, low, high, status}, ... ] }
-    ══════════════════════════════ */
     function parseGasJson(rows) {
-        globalData = {};
+        const years = Object.create(null);
         rows.forEach(row => {
-            const date = (row.date || '').trim();
-            if (!date) return;
-            if (!globalData[date]) globalData[date] = [];
-            globalData[date].push({
-                t:    (row.time   || '').trim(),
-                low:  (row.low    || '').toString().trim(),
-                high: (row.high   || '').toString().trim(),
-                s:    (row.status || '').trim()
+            const date = String(row.date ?? "").trim();
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+            const year = Number(date.slice(0,4));
+            if (year !== 2026 && year !== 2027) return;
+            const t = String(row.time ?? "").trim();
+            if (!t.includes("오전") && !t.includes("오후")) return;
+            const byDay = years[year] ||= Object.create(null);
+            (byDay[date] ||= []).push({
+                t, low: String(row.low ?? "").trim(), high: String(row.high ?? "").trim(),
+                s: String(row.status ?? "").trim()
             });
         });
+        return years;
     }
 
     /* ══════════════════════════════
@@ -1190,13 +1259,15 @@
             // 오전/오후 슬롯 처리
             [{ k: '오전', l: 'AM' }, { k: '오후', l: 'PM' }].forEach(period => {
                 const rec    = records.find(r => r.t.includes(period.k));
-                const slotEl = document.createElement('div');
+                const slotEl = document.createElement('button');
+                slotEl.type = 'button';
 
                 if (rec) {
-                    const status  = rec.s.trim();
+                    const status = (activeStatus(rec) || '').trim();
+                    const mismatch = rec.alert && rec.alert !== rec.s;
                     const highVal = parseFloat(String(rec.high).replace(/[^0-9.]/g, ''));
                     // 빈값(""), 발표대기중, NaN 모두 대기중으로 처리
-                    const isWait  = !status || status === '발표대기중' || isNaN(highVal) || rec.high === '' || rec.low === '';
+                    const isWait = !/^(open|closed)$/i.test(status) || !Number.isFinite(highVal) || rec.high === '' || rec.low === '';
 
                     if (!isWait) {
                         total++;
@@ -1212,7 +1283,7 @@
                         sClass = 'waiting';
                         icon   = `⏳ ${period.l}`;
                     } else if (status.toLowerCase() === 'closed') {
-                        sClass = (highVal >= 4.0) ? 'heavy-closed' : 'closed';
+                        sClass = (basis === 'wave' && highVal >= 4.0) ? 'heavy-closed' : 'closed';
                         icon   = `🔴 ${period.l}`;
                     } else {
                         sClass = 'open';
@@ -1220,17 +1291,18 @@
                     }
 
                     slotEl.className = `slot ${sClass}`;
-                    slotEl.innerText = icon;
-
-                    // 클릭 → 파고 상세 모달 (대기중 제외)
-                    if (!isWait) {
-                        slotEl.onclick = () => showDetail(dateStr, rec.t, rec.low, rec.high, status);
-                    }
+                    slotEl.innerText = icon + (mismatch ? ' ⓘ' : '');
+                    slotEl.setAttribute('aria-label', dateStr + ' ' + period.k + ' ' + (isWait ? '발표대기중' : status) + (mismatch ? ' · 판정 불일치' : ''));
+                    slotEl.disabled = isWait;
+                    if (!isWait) slotEl.onclick = () => showDetail(dateStr, rec, status);
 
                 } else {
                     // 데이터 없음
-                    slotEl.className = 'slot none';
-                    slotEl.innerText = '---';
+                    const pending = YEAR === 2027;
+                    slotEl.className = 'slot ' + (pending ? 'waiting' : 'none');
+                    slotEl.innerText = pending ? '⏳ ' + period.l : '---';
+                    slotEl.disabled = true;
+                    slotEl.setAttribute('aria-label', dateStr + ' ' + period.k + ' ' + (pending ? '발표대기중' : '자료 없음'));
                 }
 
                 slotCon.appendChild(slotEl);
@@ -1249,9 +1321,9 @@
     ══════════════════════════════ */
     function updateStats(t, o, c) {
         const ratio = t > 0 ? Math.round((o / t) * 100) : 0;
-        document.getElementById('openRatio').innerText   = ratio + '%';
+        document.getElementById('openRatio').innerText   = t ? ratio + '%' : '—';
         document.getElementById('closedCount').innerText = c + '회';
-        document.getElementById('closedRatio').innerText = (t > 0 ? (100 - ratio) : 0) + '%';
+        document.getElementById('closedRatio').innerText = t ? (100 - ratio) + '%' : '—';
     }
 
 
@@ -1279,7 +1351,7 @@
                 if (!date.startsWith(`${YEAR}-${String(month).padStart(2, '0')}-`)) return;
                 records.forEach(rec => {
                     const high = parseFloat(String(rec.high).replace(/[^0-9.]/g, ''));
-                    const status = (rec.s || '').trim().toLowerCase();
+                    const status = (activeStatus(rec) || '').trim().toLowerCase();
                     const waiting = !status || status === '발표대기중' || isNaN(high) || rec.high === '' || rec.low === '';
                     if (waiting) return;
                     if (status === 'closed') closed++;
@@ -1374,7 +1446,7 @@
         const annualOpenRatio = annualTotal ? Math.round(annual.open / annualTotal * 1000) / 10 : 0;
 
         document.getElementById('yearTotal').innerText = annualTotal + '회';
-        document.getElementById('yearOpenRatio').innerText = annualOpenRatio + '%';
+        document.getElementById('yearOpenRatio').innerText = annualTotal ? annualOpenRatio + '%' : '—';
         document.getElementById('yearClosedCount').innerText = annual.closed + '회';
 
         renderStatsChart(stats);
@@ -1385,8 +1457,8 @@
                 <td class="open-text">${item.open}</td>
                 <td class="closed-text">${item.closed}</td>
                 <td>${item.total}</td>
-                <td class="open-text">${item.openRatio.toFixed(1)}%</td>
-                <td class="closed-text">${item.closedRatio.toFixed(1)}%</td>
+                <td class="open-text">${item.total ? item.openRatio.toFixed(1) + '%' : '—'}</td>
+                <td class="closed-text">${item.total ? item.closedRatio.toFixed(1) + '%' : '—'}</td>
             </tr>
         `).join('');
     }
@@ -1394,7 +1466,8 @@
     /* ══════════════════════════════
        파고 상세 모달 열기
     ══════════════════════════════ */
-    function showDetail(d, t, low, high, s) {
+    function showDetail(d, rec, s) {
+        const {t, low, high} = rec;
         document.getElementById('mDate').innerText = `${d}  (${t})`;
 
         const status  = s.trim();
@@ -1413,6 +1486,13 @@
         } else {
             statusEl.innerText   = '🟢 PORT OPEN';
             statusEl.style.color = 'var(--open)';
+        }
+
+        const compare = document.getElementById('mCompare');
+        compare.hidden = !rec.alert;
+        if (rec.alert) {
+            statusEl.innerText = (basis === 'alert' ? '풍랑특보' : '보정 파고') + ' 기준 · ' + s;
+            compare.textContent = '보정 파고 ' + rec.s + ' · 풍랑특보 ' + rec.alert + ' (겹침 ' + rec.minutes + '분)';
         }
 
         // 파고 수치 (단위 m 보정)
